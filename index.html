@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>何鑫實業教育訓練成果系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #1e88e5;
+            --primary-dark: #1565c0;
+            --success: #43a047;
+            --warning: #ffa726;
+            --danger: #e53935;
+            --text: #1a1a2e;
+            --text-light: #78909c;
+            --bg: #f8f9fa;
+            --border: #e0e0e0;
+        }
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo {
+            height: 60px;
+        }
+        
+        .header-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .header-subtitle {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        
+        .hidden { display: none !important; }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-2px); }
+        
+        .btn-secondary {
+            background: #78909c;
+            color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            background: var(--bg);
+            padding: 6px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .course-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .course-card {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .course-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .course-code {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        
+        .course-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .course-info {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            border: none;
+            background: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+        
+        .question-block {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .question-text {
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .radio-label {
+            flex: 1;
+            min-width: 70px;
+            text-align: center;
+        }
+        
+        .radio-label input {
+            position: absolute;
+            opacity: 0;
+        }
+        
+        .radio-label span {
+            display: block;
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            background: white;
+        }
+        
+        .radio-label input:checked + span {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            min-height: 100px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        th {
+            background: var(--bg);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        tr:hover {
+            background: var(--bg);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+        
+        .section-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 24px 0 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .checkbox-label:hover {
+            background: var(--bg);
+        }
+        
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; }
+            .course-grid { grid-template-columns: 1fr; }
+            .tab-nav { flex-wrap: nowrap; }
+            .btn-group { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/mnt/user-data/uploads/何鑫LOGO_新版_去背-1.png" alt="何鑫實業" class="logo" id="logoImg">
+            <div>
+                <div class="header-title">何鑫實業教育訓練成果系統</div>
+                <div class="header-subtitle">HerHsin Training Management System</div>
+            </div>
+        </div>
+
+        <!-- Login -->
+        <div id="view-login" class="card" style="max-width: 480px; margin: 60px auto;">
+            <h2 style="text-align: center; margin-bottom: 32px;">系統登入</h2>
+            
+            <div style="background: var(--bg); padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 16px;">👤 學員登入</h3>
+                <div class="form-group">
+                    <label class="form-label">請選擇您的姓名</label>
+                    <select id="userSelect" class="form-select">
+                        <option value="">-- 請選擇 --</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" id="userLoginBtn">進入系統</button>
+            </div>
+            
+            <div style="text-align: center; margin: 24px 0; color: var(--text-light);">或</div>
+            
+            <div style="background: var(--bg); padding: 24px; border-radius: 12px;">
+                <h3 style="margin-bottom: 16px;">🔐 管理端登入</h3>
+                <div class="form-group">
+                    <label class="form-label">帳號</label>
+                    <input type="text" id="adminAccount" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密碼</label>
+                    <input type="password" id="adminPassword" class="form-input">
+                </div>
+                <button class="btn btn-secondary" id="adminLoginBtn">管理端登入</button>
+            </div>
+        </div>
+
+        <!-- User View -->
+        <div id="view-user" class="card hidden">
+            <h2 style="margin-bottom: 20px;">歡迎，<span id="userName"></span></h2>
+            
+            <div id="managerTabs" class="tab-nav hidden">
+                <button class="tab-btn active" data-tab="satisfaction">滿意度調查</button>
+                <button class="tab-btn" data-tab="reflection">心得報告</button>
+                <button class="tab-btn" data-tab="evaluation">成效評估</button>
+                <button class="tab-btn" data-tab="subordinates">部屬成果</button>
+            </div>
+            
+            <div id="tab-satisfaction" class="tab-content">
+                <h3>待填滿意度調查</h3>
+                <div id="satisfactionList" class="course-grid"></div>
+            </div>
+            
+            <div id="tab-reflection" class="tab-content hidden">
+                <h3>待填心得報告</h3>
+                <div id="reflectionList" class="course-grid"></div>
+            </div>
+            
+            <div id="tab-evaluation" class="tab-content hidden">
+                <h3>部屬成效評估</h3>
+                <div id="evaluationList" class="course-grid"></div>
+            </div>
+            
+            <div id="tab-subordinates" class="tab-content hidden">
+                <h3>部屬訓練成果</h3>
+                <div id="subordinatesList"></div>
+            </div>
+            
+            <button class="btn btn-secondary" id="userLogoutBtn" style="margin-top: 24px;">登出</button>
+        </div>
+
+        <!-- Admin View -->
+        <div id="view-admin" class="card hidden">
+            <h2 style="margin-bottom: 24px;">管理後台</h2>
+            
+            <div class="tab-nav">
+                <button class="tab-btn active" data-admin-tab="dashboard">儀表板</button>
+                <button class="tab-btn" data-admin-tab="users">人員管理</button>
+                <button class="tab-btn" data-admin-tab="courses">課程管理</button>
+                <button class="tab-btn" data-admin-tab="attendance">受訓登錄</button>
+                <button class="tab-btn" data-admin-tab="progress">進度追蹤</button>
+                <button class="tab-btn" data-admin-tab="records">受訓紀錄</button>
+            </div>
+            
+            <div id="admin-dashboard" class="admin-tab">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-courses">0</div>
+                        <div class="stat-label">總課程數</div>
+                    </div>
+                    <div class="stat-card" style="background: var(--success);">
+                        <div class="stat-value" id="stat-users">0</div>
+                        <div class="stat-label">總學員數</div>
+                    </div>
+                    <div class="stat-card" style="background: var(--warning);">
+                        <div class="stat-value" id="stat-pending">0</div>
+                        <div class="stat-label">待填滿意度</div>
+                    </div>
+                    <div class="stat-card" style="background: var(--danger);">
+                        <div class="stat-value" id="stat-eval">0</div>
+                        <div class="stat-label">待評估數</div>
+                    </div>
+                </div>
+                <h3>近期課程</h3>
+                <div id="recentCourses"></div>
+            </div>
+            
+            <div id="admin-users" class="admin-tab hidden">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <h3>人員管理</h3>
+                    <button class="btn btn-primary" id="addUserBtn" style="width: auto; padding: 10px 20px;">➕ 新增</button>
+                </div>
+                <div id="usersContent"></div>
+            </div>
+            
+            <div id="admin-courses" class="admin-tab hidden">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <h3>課程管理</h3>
+                    <button class="btn btn-primary" id="addCourseBtn" style="width: auto; padding: 10px 20px;">➕ 新增</button>
+                </div>
+                <div id="coursesContent"></div>
+            </div>
+            
+            <div id="admin-attendance" class="admin-tab hidden">
+                <h3 style="margin-bottom: 16px;">受訓登錄</h3>
+                <div id="attendanceContent"></div>
+            </div>
+            
+            <div id="admin-progress" class="admin-tab hidden">
+                <h3 style="margin-bottom: 16px;">進度追蹤</h3>
+                <div class="section-header">滿意度調查進度</div>
+                <div id="progressSatisfaction"></div>
+                <div class="section-header">心得報告進度</div>
+                <div id="progressReflection"></div>
+                <div class="section-header">成效評估進度</div>
+                <div id="progressEvaluation"></div>
+            </div>
+            
+            <div id="admin-records" class="admin-tab hidden">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <h3>受訓紀錄</h3>
+                    <button class="btn btn-primary" id="exportBtn" style="width: auto; padding: 10px 20px;">📥 匯出</button>
+                </div>
+                <div id="recordsContent"></div>
+            </div>
+            
+            <button class="btn btn-secondary" id="adminLogoutBtn" style="margin-top: 24px;">登出</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal" class="modal"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWAhhxjeYGvtW22IFXPd5et-evdPfmFr4",
+            authDomain: "training-system-claude.firebaseapp.com",
+            projectId: "training-system-claude",
+            storageBucket: "training-system-claude.firebasestorage.app",
+            messagingSenderId: "847172782391",
+            appId: "1:847172782391:web:d8593d3fedd024ff5972b2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        let currentUser = null;
+        let currentRole = null;
+        let allUsers = [];
+        let allCourses = [];
+
+        // Initialize
+        window.addEventListener('load', async () => {
+            await loadUsers();
+            setupEventListeners();
+        });
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Login buttons
+            document.getElementById('userLoginBtn').addEventListener('click', () => login('user'));
+            document.getElementById('adminLoginBtn').addEventListener('click', () => login('admin'));
+            
+            // Logout buttons
+            document.getElementById('userLogoutBtn').addEventListener('click', logout);
+            document.getElementById('adminLogoutBtn').addEventListener('click', logout);
+            
+            // User tabs
+            document.querySelectorAll('#managerTabs .tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const tab = e.target.getAttribute('data-tab');
+                    switchTab(tab, e.target);
+                });
+            });
+            
+            // Admin tabs
+            document.querySelectorAll('#view-admin .tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const tab = e.target.getAttribute('data-admin-tab');
+                    switchAdminTab(tab, e.target);
+                });
+            });
+            
+            // Admin action buttons
+            document.getElementById('addUserBtn').addEventListener('click', () => showUserModal());
+            document.getElementById('addCourseBtn').addEventListener('click', () => showCourseModal());
+            document.getElementById('exportBtn').addEventListener('click', exportRecords);
+        }
+
+        // Load Users
+        async function loadUsers() {
+            const snap = await getDocs(collection(db, 'users'));
+            const select = document.getElementById('userSelect');
+            select.innerHTML = '<option value="">-- 請選擇 --</option>';
+            
+            allUsers = [];
+            snap.forEach(docSnap => {
+                const user = { id: docSnap.id, ...docSnap.data() };
+                allUsers.push(user);
+                const opt = document.createElement('option');
+                opt.value = docSnap.id;
+                opt.textContent = user.name;
+                opt.setAttribute('data-is-manager', user.isManager || false);
+                opt.setAttribute('data-password', user.password || '');
+                select.appendChild(opt);
+            });
+        }
+
+        // Login
+        async function login(type) {
+            if (type === 'user') {
+                const select = document.getElementById('userSelect');
+                const userId = select.value;
+                if (!userId) return alert('請選擇姓名');
+                
+                const option = select.options[select.selectedIndex];
+                const isManager = option.getAttribute('data-is-manager') === 'true';
+                
+                if (isManager) {
+                    const pwd = prompt('請輸入密碼:');
+                    if (pwd !== option.getAttribute('data-password')) return alert('密碼錯誤');
+                }
+                
+                currentUser = userId;
+                currentRole = isManager ? 'manager' : 'user';
+                document.getElementById('view-login').classList.add('hidden');
+                document.getElementById('view-user').classList.remove('hidden');
+                document.getElementById('userName').textContent = option.textContent;
+                
+                if (isManager) {
+                    document.getElementById('managerTabs').classList.remove('hidden');
+                }
+                
+                await loadUserData();
+            } else {
+                const acc = document.getElementById('adminAccount').value;
+                const pwd = document.getElementById('adminPassword').value;
+                if (acc === 'Admin01' && pwd === '76380260') {
+                    currentRole = 'admin';
+                    document.getElementById('view-login').classList.add('hidden');
+                    document.getElementById('view-admin').classList.remove('hidden');
+                    await loadAdminDashboard();
+                } else {
+                    alert('帳號或密碼錯誤');
+                }
+            }
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            currentRole = null;
+            document.getElementById('view-user').classList.add('hidden');
+            document.getElementById('view-admin').classList.add('hidden');
+            document.getElementById('view-login').classList.remove('hidden');
+            document.getElementById('managerTabs').classList.add('hidden');
+        }
+
+        // Switch Tab
+        function switchTab(tab, clickedBtn) {
+            document.querySelectorAll('#managerTabs .tab-btn').forEach(b => b.classList.remove('active'));
+            clickedBtn.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+            
+            if (tab === 'satisfaction') loadSatisfactionList();
+            else if (tab === 'reflection') loadReflectionList();
+            else if (tab === 'evaluation') loadEvaluationList();
+            else if (tab === 'subordinates') loadSubordinates();
+        }
+
+        // Switch Admin Tab
+        function switchAdminTab(tab, clickedBtn) {
+            document.querySelectorAll('#view-admin .tab-btn').forEach(b => b.classList.remove('active'));
+            clickedBtn.classList.add('active');
+            document.querySelectorAll('.admin-tab').forEach(t => t.classList.add('hidden'));
+            document.getElementById('admin-' + tab).classList.remove('hidden');
+            
+            if (tab === 'dashboard') loadAdminDashboard();
+            else if (tab === 'users') loadUsersAdmin();
+            else if (tab === 'courses') loadCoursesAdmin();
+            else if (tab === 'attendance') loadAttendanceAdmin();
+            else if (tab === 'progress') loadProgressAdmin();
+            else if (tab === 'records') loadRecordsAdmin();
+        }
+
+        // Load User Data
+        async function loadUserData() {
+            await loadSatisfactionList();
+        }
+
+        // Load Satisfaction List
+        async function loadSatisfactionList() {
+            const container = document.getElementById('satisfactionList');
+            container.innerHTML = '<div class="loading">載入中...</div>';
+            
+            const coursesSnap = await getDocs(collection(db, 'courses'));
+            const submittedSnap = await getDocs(query(collection(db, 'satisfactionSurveys'), where('userId', '==', currentUser)));
+            
+            const submitted = new Set(submittedSnap.docs.map(d => d.data().courseCode));
+            const pending = [];
+            
+            coursesSnap.forEach(docSnap => {
+                const course = docSnap.data();
+                if (course.attendedStudents && course.attendedStudents.includes(currentUser) && !submitted.has(course.code)) {
+                    pending.push({ id: docSnap.id, ...course });
+                }
+            });
+            
+            if (pending.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light);">目前沒有待填項目</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            pending.forEach(course => {
+                const card = document.createElement('div');
+                card.className = 'course-card';
+                card.innerHTML = `
+                    <div class="course-code">${course.code}</div>
+                    <div class="course-name">${course.name}</div>
+                    <div class="course-info">講師: ${course.teacher || '未定'}</div>
+                `;
+                card.addEventListener('click', () => showSatisfactionModal(course));
+                container.appendChild(card);
+            });
+        }
+
+        // Show Satisfaction Modal
+        function showSatisfactionModal(course) {
+            const modal = document.getElementById('modal');
+            
+            const questions = [
+                '與課程主題相關之專業能力', '口語表達能力', '激發學員參與意願', '授課內容契合度', '時間掌握能力',
+                '學習新技巧的滿意度', '解決工作問題的啟發', '達成工作目標的助益', '教材內容滿意度', '課程時數安排', '達到預期效果',
+                '訓練行政作業滿意度', '訓練場地滿意度', '課程流程品質', '參加其他課程意願'
+            ];
+            
+            let questionsHtml = '';
+            questions.forEach((q, i) => {
+                let radioOptions = '';
+                for (let s = 1; s <= 5; s++) {
+                    radioOptions += `
+                        <label class="radio-label">
+                            <input type="radio" name="q${i}" value="${s}" required>
+                            <span>${s}分</span>
+                        </label>
+                    `;
+                }
+                
+                questionsHtml += `
+                    <div class="question-block">
+                        <div class="question-text">${i+1}. ${q}</div>
+                        <div class="radio-group">${radioOptions}</div>
+                    </div>
+                `;
+            });
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>滿意度調查</h2>
+                    <p style="background:var(--bg); padding:12px; border-radius:8px; margin:16px 0;">
+                        <strong>課程:</strong> ${course.name}<br>
+                        <strong>編號:</strong> ${course.code}
+                    </p>
+                    <div id="surveyQuestions">${questionsHtml}</div>
+                    <div class="section-header">簡答題</div>
+                    <div class="form-group">
+                        <label class="form-label">您認為從本課程學習到什麼?</label>
+                        <textarea id="ans1"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">其他建議</label>
+                        <textarea id="ans2"></textarea>
+                    </div>
+                    <button class="btn btn-success" id="submitSatBtn">提交</button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            
+            document.getElementById('submitSatBtn').addEventListener('click', () => submitSatisfaction(course.code, course.year));
+        }
+
+        // Submit Satisfaction
+        async function submitSatisfaction(code, year) {
+            const scores = [];
+            for (let i = 0; i < 15; i++) {
+                const sel = document.querySelector(`input[name="q${i}"]:checked`);
+                if (!sel) return alert(`請完成第${i+1}題`);
+                scores.push(parseInt(sel.value));
+            }
+            
+            const ans1 = document.getElementById('ans1').value;
+            const ans2 = document.getElementById('ans2').value;
+            
+            const user = allUsers.find(u => u.id === currentUser);
+            
+            await addDoc(collection(db, 'satisfactionSurveys'), {
+                courseCode: code,
+                userId: currentUser,
+                userName: user.name,
+                year: year,
+                scores: scores,
+                answer1: ans1,
+                answer2: ans2,
+                submittedAt: new Date().toISOString()
+            });
+            
+            alert('提交成功！');
+            document.getElementById('modal').classList.remove('active');
+            await loadSatisfactionList();
+        }
+
+        // Load Reflection List
+        async function loadReflectionList() {
+            const container = document.getElementById('reflectionList');
+            container.innerHTML = '<div class="loading">載入中...</div>';
+            
+            const coursesSnap = await getDocs(collection(db, 'courses'));
+            const submittedSnap = await getDocs(query(collection(db, 'reflectionReports'), 
+                where('userId', '==', currentUser), where('isDraft', '==', false)));
+            
+            const submitted = new Set(submittedSnap.docs.map(d => d.data().courseCode));
+            const pending = [];
+            
+            coursesSnap.forEach(docSnap => {
+                const course = docSnap.data();
+                if (course.attendedStudents && course.attendedStudents.includes(currentUser) && !submitted.has(course.code)) {
+                    pending.push({ id: docSnap.id, ...course });
+                }
+            });
+            
+            if (pending.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light);">目前沒有待填項目</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            pending.forEach(course => {
+                const card = document.createElement('div');
+                card.className = 'course-card';
+                card.innerHTML = `
+                    <div class="course-code">${course.code}</div>
+                    <div class="course-name">${course.name}</div>
+                `;
+                card.addEventListener('click', () => showReflectionModal(course));
+                container.appendChild(card);
+            });
+        }
+
+        // Show Reflection Modal
+        async function showReflectionModal(course) {
+            // Check draft
+            let draft = null;
+            const draftSnap = await getDocs(query(collection(db, 'reflectionReports'),
+                where('userId', '==', currentUser), where('courseCode', '==', course.code), where('isDraft', '==', true)));
+            
+            if (!draftSnap.empty) {
+                draft = { id: draftSnap.docs[0].id, ...draftSnap.docs[0].data() };
+            }
+            
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>心得報告</h2>
+                    <p style="background:var(--bg); padding:12px; border-radius:8px; margin:16px 0;">
+                        <strong>課程:</strong> ${course.name}<br>
+                        ${draft ? '<span style="color:var(--warning);">📝 偵測到草稿</span>' : ''}
+                    </p>
+                    <div class="form-group">
+                        <label class="form-label">1. 在課程中學習到了什麼?</label>
+                        <textarea id="ref1">${draft ? draft.answer1 : ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">2. 哪一個部分最想深入了解?</label>
+                        <textarea id="ref2">${draft ? draft.answer2 : ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">3. 如何使用在工作上?</label>
+                        <textarea id="ref3">${draft ? draft.answer3 : ''}</textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-warning" id="saveDraftBtn">💾 暫存</button>
+                        <button class="btn btn-success" id="submitRefBtn">提交</button>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            
+            document.getElementById('saveDraftBtn').addEventListener('click', () => saveDraft(course.code, draft ? draft.id : ''));
+            document.getElementById('submitRefBtn').addEventListener('click', () => submitReflection(course.code, draft ? draft.id : ''));
+        }
+
+        // Save Draft
+        async function saveDraft(code, draftId) {
+            const user = allUsers.find(u => u.id === currentUser);
+            const data = {
+                courseCode: code,
+                userId: currentUser,
+                userName: user.name,
+                answer1: document.getElementById('ref1').value,
+                answer2: document.getElementById('ref2').value,
+                answer3: document.getElementById('ref3').value,
+                isDraft: true,
+                lastSavedAt: new Date().toISOString()
+            };
+            
+            if (draftId) {
+                await updateDoc(doc(db, 'reflectionReports', draftId), data);
+            } else {
+                await addDoc(collection(db, 'reflectionReports'), data);
+            }
+            alert('草稿已儲存');
+        }
+
+        // Submit Reflection
+        async function submitReflection(code, draftId) {
+            const ans1 = document.getElementById('ref1').value;
+            const ans2 = document.getElementById('ref2').value;
+            const ans3 = document.getElementById('ref3').value;
+            
+            if (!ans1 || !ans2 || !ans3) return alert('請完成所有題目');
+            
+            const user = allUsers.find(u => u.id === currentUser);
+            const data = {
+                courseCode: code,
+                userId: currentUser,
+                userName: user.name,
+                answer1: ans1,
+                answer2: ans2,
+                answer3: ans3,
+                isDraft: false,
+                submittedAt: new Date().toISOString()
+            };
+            
+            if (draftId) {
+                await updateDoc(doc(db, 'reflectionReports', draftId), data);
+            } else {
+                await addDoc(collection(db, 'reflectionReports'), data);
+            }
+            
+            alert('提交成功！');
+            document.getElementById('modal').classList.remove('active');
+            await loadReflectionList();
+        }
+
+        // Load Evaluation List (for managers)
+        async function loadEvaluationList() {
+            const container = document.getElementById('evaluationList');
+            container.innerHTML = '<div class="loading">載入中...</div>';
+            
+            const userDoc = await getDoc(doc(db, 'users', currentUser));
+            const subordinates = userDoc.data().subordinates || [];
+            
+            if (subordinates.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px;">沒有部屬</div>';
+                return;
+            }
+            
+            const coursesSnap = await getDocs(collection(db, 'courses'));
+            const evaluatedSnap = await getDocs(query(collection(db, 'performanceEvaluations'), where('managerId', '==', currentUser)));
+            
+            const evaluated = new Set(evaluatedSnap.docs.map(d => `${d.data().courseCode}-${d.data().studentId}`));
+            const today = new Date();
+            const pending = [];
+            
+            coursesSnap.forEach(docSnap => {
+                const course = docSnap.data();
+                if (!course.completionDate) return;
+                
+                const compDate = new Date(course.completionDate);
+                const evalDate = new Date(compDate);
+                evalDate.setDate(evalDate.getDate() + 30);
+                
+                if (today >= evalDate && course.attendedStudents) {
+                    course.attendedStudents.forEach(sid => {
+                        if (subordinates.includes(sid) && !evaluated.has(`${course.code}-${sid}`)) {
+                            pending.push({ course, studentId: sid });
+                        }
+                    });
+                }
+            });
+            
+            if (pending.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px;">沒有待評估項目</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            pending.forEach(item => {
+                const student = allUsers.find(u => u.id === item.studentId);
+                const card = document.createElement('div');
+                card.className = 'course-card';
+                card.innerHTML = `
+                    <div class="course-code">${item.course.code}</div>
+                    <div class="course-name">${item.course.name}</div>
+                    <div class="course-info">學員: ${student ? student.name : '未知'}</div>
+                `;
+                card.addEventListener('click', () => showEvaluationModal(item.course, item.studentId, student ? student.name : '未知'));
+                container.appendChild(card);
+            });
+        }
+
+        // Show Evaluation Modal
+        function showEvaluationModal(course, studentId, studentName) {
+            const questions = [
+                '該員工作品質是否有顯著改善',
+                '該員工作效率是否有明顯提升',
+                '該員專業知識是否有明顯提升',
+                '該員工敬業態度是否有顯著提升'
+            ];
+            
+            const options = [
+                { label: '提升很多', score: 5 },
+                { label: '有提升', score: 4 },
+                { label: '普通', score: 3 },
+                { label: '無提升', score: 2 },
+                { label: '很差', score: 1 }
+            ];
+            
+            let questionsHtml = '';
+            questions.forEach((q, i) => {
+                let radioOptions = '';
+                options.forEach(opt => {
+                    radioOptions += `
+                        <label class="radio-label">
+                            <input type="radio" name="eval${i}" value="${opt.score}" required>
+                            <span>${opt.label}<br>(${opt.score}分)</span>
+                        </label>
+                    `;
+                });
+                
+                questionsHtml += `
+                    <div class="question-block">
+                        <div class="question-text">${i+1}. ${q}</div>
+                        <div class="radio-group">${radioOptions}</div>
+                    </div>
+                `;
+            });
+            
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>成效評估</h2>
+                    <p style="background:var(--bg); padding:12px; border-radius:8px; margin:16px 0;">
+                        <strong>課程:</strong> ${course.name}<br>
+                        <strong>學員:</strong> ${studentName}
+                    </p>
+                    ${questionsHtml}
+                    <button class="btn btn-success" id="submitEvalBtn">提交</button>
+                </div>
+            `;
+            modal.classList.add('active');
+            
+            document.getElementById('submitEvalBtn').addEventListener('click', () => submitEvaluation(course.code, studentId, studentName, course.completionDate));
+        }
+
+        // Submit Evaluation
+        async function submitEvaluation(courseCode, studentId, studentName, completionDate) {
+            const scores = [];
+            for (let i = 0; i < 4; i++) {
+                const sel = document.querySelector(`input[name="eval${i}"]:checked`);
+                if (!sel) return alert(`請完成第${i+1}題`);
+                scores.push(parseInt(sel.value));
+            }
+            
+            const total = scores.reduce((a,b) => a+b, 0);
+            const result = total <= 10 ? 'NG' : 'OK';
+            
+            const compDate = new Date(completionDate);
+            const evalDate = new Date(compDate);
+            evalDate.setDate(evalDate.getDate() + 30);
+            
+            const user = allUsers.find(u => u.id === currentUser);
+            
+            await addDoc(collection(db, 'performanceEvaluations'), {
+                courseCode,
+                studentId,
+                studentName,
+                managerId: currentUser,
+                managerName: user.name,
+                scores,
+                totalScore: total,
+                result,
+                availableFrom: evalDate.toISOString().split('T')[0],
+                evaluatedAt: new Date().toISOString()
+            });
+            
+            alert(`評估完成！\n總分: ${total}\n結果: ${result}`);
+            document.getElementById('modal').classList.remove('active');
+            await loadEvaluationList();
+        }
+
+        // Load Subordinates
+        async function loadSubordinates() {
+            const container = document.getElementById('subordinatesList');
+            container.innerHTML = '<div class="loading">載入中...</div>';
+            
+            const userDoc = await getDoc(doc(db, 'users', currentUser));
+            const subordinates = userDoc.data().subordinates || [];
+            
+            if (subordinates.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px;">沒有部屬</div>';
+                return;
+            }
+            
+            const [coursesSnap, satSnap, refSnap, evalSnap] = await Promise.all([
+                getDocs(collection(db, 'courses')),
+                getDocs(collection(db, 'satisfactionSurveys')),
+                getDocs(collection(db, 'reflectionReports')),
+                getDocs(collection(db, 'performanceEvaluations'))
+            ]);
+            
+            let html = '<table><thead><tr><th>姓名</th><th>課程數</th><th>總時數</th><th>證書數</th><th>滿意度</th><th>心得</th><th>評估平均</th></tr></thead><tbody>';
+            
+            subordinates.forEach(subId => {
+                const sub = allUsers.find(u => u.id === subId);
+                if (!sub) return;
+                
+                let courses = 0, hours = 0, certs = 0, sat = 0, ref = 0, evalSum = 0, evalCount = 0;
+                
+                coursesSnap.forEach(d => {
+                    const c = d.data();
+                    if (c.attendedStudents && c.attendedStudents.includes(subId)) {
+                        courses++;
+                        hours += c.hours || 0;
+                        if (c.hasCertificate) certs++;
+                    }
+                });
+                
+                satSnap.forEach(d => { if (d.data().userId === subId) sat++; });
+                refSnap.forEach(d => { const r = d.data(); if (r.userId === subId && !r.isDraft) ref++; });
+                evalSnap.forEach(d => {
+                    const e = d.data();
+                    if (e.studentId === subId) {
+                        evalSum += e.totalScore;
+                        evalCount++;
+                    }
+                });
+                
+                const avgEval = evalCount > 0 ? (evalSum / evalCount).toFixed(1) : '-';
+                
+                html += `<tr>
+                    <td>${sub.name}</td>
+                    <td>${courses}</td>
+                    <td>${hours}h</td>
+                    <td>${certs}</td>
+                    <td>${sat}/${courses}</td>
+                    <td>${ref}/${courses}</td>
+                    <td>${avgEval}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Admin Dashboard
+        async function loadAdminDashboard() {
+            const [coursesSnap, usersSnap, satSnap, evalSnap] = await Promise.all([
+                getDocs(collection(db, 'courses')),
+                getDocs(collection(db, 'users')),
+                getDocs(collection(db, 'satisfactionSurveys')),
+                getDocs(collection(db, 'performanceEvaluations'))
+            ]);
+            
+            document.getElementById('stat-courses').textContent = coursesSnap.size;
+            document.getElementById('stat-users').textContent = usersSnap.size;
+            
+            allCourses = [];
+            coursesSnap.forEach(d => allCourses.push({ id: d.id, ...d.data() }));
+            
+            // Calculate pending
+            let pendingSat = 0;
+            const submittedSat = new Set(satSnap.docs.map(d => `${d.data().userId}-${d.data().courseCode}`));
+            coursesSnap.forEach(d => {
+                const c = d.data();
+                (c.attendedStudents || []).forEach(uid => {
+                    if (!submittedSat.has(`${uid}-${c.code}`)) pendingSat++;
+                });
+            });
+            document.getElementById('stat-pending').textContent = pendingSat;
+            
+            // Calculate pending eval
+            const today = new Date();
+            let pendingEval = 0;
+            const evaluatedKeys = new Set(evalSnap.docs.map(d => `${d.data().courseCode}-${d.data().studentId}`));
+            coursesSnap.forEach(d => {
+                const c = d.data();
+                if (!c.completionDate) return;
+                const compDate = new Date(c.completionDate);
+                const evalDate = new Date(compDate);
+                evalDate.setDate(evalDate.getDate() + 30);
+                if (today >= evalDate && c.attendedStudents) {
+                    c.attendedStudents.forEach(sid => {
+                        if (!evaluatedKeys.has(`${c.code}-${sid}`)) pendingEval++;
+                    });
+                }
+            });
+            document.getElementById('stat-eval').textContent = pendingEval;
+            
+            // Recent courses
+            const sorted = allCourses.sort((a, b) => {
+                const dateA = a.completionDate ? new Date(a.completionDate) : new Date(0);
+                const dateB = b.completionDate ? new Date(b.completionDate) : new Date(0);
+                return dateB - dateA;
+            });
+            
+            let html = '<table><thead><tr><th>編號</th><th>課程</th><th>講師</th><th>完訓日期</th><th>學員數</th></tr></thead><tbody>';
+            sorted.slice(0, 5).forEach(c => {
+                html += `<tr>
+                    <td>${c.code}</td>
+                    <td>${c.name}</td>
+                    <td>${c.teacher || '未定'}</td>
+                    <td>${c.completionDate || '未定'}</td>
+                    <td>${c.attendedStudents ? c.attendedStudents.length : 0}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('recentCourses').innerHTML = html;
+        }
+
+        // Load Users Admin
+        async function loadUsersAdmin() {
+            const snap = await getDocs(collection(db, 'users'));
+            allUsers = [];
+            snap.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
+            
+            let html = '<table><thead><tr><th>姓名</th><th>職級</th><th>管理職</th><th>部屬數</th><th>操作</th></tr></thead><tbody>';
+            allUsers.forEach(u => {
+                html += `<tr>
+                    <td>${u.name}</td>
+                    <td>${u.level}</td>
+                    <td>${u.isManager ? '✓' : ''}</td>
+                    <td>${u.subordinates ? u.subordinates.length : 0}</td>
+                    <td>
+                        <button class="btn btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" data-edit-user="${u.id}">編輯</button>
+                        <button class="btn" style="width:auto; padding:6px 12px; font-size:12px; background:var(--danger); color:white;" data-delete-user="${u.id}">刪除</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('usersContent').innerHTML = html;
+            
+            // Attach event listeners
+            document.querySelectorAll('[data-edit-user]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const userId = e.target.getAttribute('data-edit-user');
+                    editUser(userId);
+                });
+            });
+            
+            document.querySelectorAll('[data-delete-user]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const userId = e.target.getAttribute('data-delete-user');
+                    deleteUser(userId);
+                });
+            });
+        }
+
+        // Show User Modal
+        function showUserModal() {
+            const modal = document.getElementById('modal');
+            
+            let subHtml = '';
+            allUsers.forEach(u => {
+                subHtml += `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${u.id}">
+                        <span>${u.name}</span>
+                    </label>
+                `;
+            });
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>新增人員</h2>
+                    <div class="form-group">
+                        <label class="form-label">姓名</label>
+                        <input type="text" id="user-name" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">職級</label>
+                        <select id="user-level" class="form-select">
+                            <option>L1</option><option>L2</option><option>L3</option><option>L4</option><option>L5</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="user-isManager"> 管理職
+                        </label>
+                    </div>
+                    <div class="form-group" id="pwd-group" style="display:none;">
+                        <label class="form-label">密碼</label>
+                        <input type="password" id="user-password" class="form-input">
+                    </div>
+                    <div class="form-group" id="sub-group" style="display:none;">
+                        <label class="form-label">部屬</label>
+                        <div id="subordinates-list" class="checkbox-group">${subHtml}</div>
+                    </div>
+                    <button class="btn btn-success" id="saveUserBtn">儲存</button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            
+            document.getElementById('user-isManager').addEventListener('change', function() {
+                document.getElementById('pwd-group').style.display = this.checked ? 'block' : 'none';
+                document.getElementById('sub-group').style.display = this.checked ? 'block' : 'none';
+            });
+            
+            document.getElementById('saveUserBtn').addEventListener('click', saveUser);
+        }
+
+        // Edit User
+        async function editUser(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            const modal = document.getElementById('modal');
+            
+            let subHtml = '';
+            allUsers.forEach(u => {
+                if (u.id !== userId) {
+                    const checked = user.subordinates && user.subordinates.includes(u.id) ? 'checked' : '';
+                    subHtml += `
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="${u.id}" ${checked}>
+                            <span>${u.name}</span>
+                        </label>
+                    `;
+                }
+            });
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>編輯人員</h2>
+                    <div class="form-group">
+                        <label class="form-label">姓名</label>
+                        <input type="text" id="user-name" class="form-input" value="${user.name}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">職級</label>
+                        <select id="user-level" class="form-select">
+                            <option ${user.level==='L1'?'selected':''}>L1</option>
+                            <option ${user.level==='L2'?'selected':''}>L2</option>
+                            <option ${user.level==='L3'?'selected':''}>L3</option>
+                            <option ${user.level==='L4'?'selected':''}>L4</option>
+                            <option ${user.level==='L5'?'selected':''}>L5</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="user-isManager" ${user.isManager?'checked':''}> 管理職
+                        </label>
+                    </div>
+                    <div class="form-group" style="display:${user.isManager?'block':'none'};" id="pwd-group">
+                        <label class="form-label">密碼</label>
+                        <input type="password" id="user-password" class="form-input" value="${user.password || ''}">
+                    </div>
+                    <div class="form-group" style="display:${user.isManager?'block':'none'};" id="sub-group">
+                        <label class="form-label">部屬</label>
+                        <div id="subordinates-list" class="checkbox-group">${subHtml}</div>
+                    </div>
+                    <button class="btn btn-success" id="updateUserBtn">更新</button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            
+            document.getElementById('user-isManager').addEventListener('change', function() {
+                document.getElementById('pwd-group').style.display = this.checked ? 'block' : 'none';
+                document.getElementById('sub-group').style.display = this.checked ? 'block' : 'none';
+            });
+            
+            document.getElementById('updateUserBtn').addEventListener('click', () => updateUser(userId));
+        }
+
+        // Save User
+        async function saveUser() {
+            const name = document.getElementById('user-name').value;
+            const level = document.getElementById('user-level').value;
+            const isManager = document.getElementById('user-isManager').checked;
+            const password = isManager ? document.getElementById('user-password').value : '';
+            
+            const subordinates = [];
+            if (isManager) {
+                document.querySelectorAll('#subordinates-list input:checked').forEach(cb => {
+                    subordinates.push(cb.value);
+                });
+            }
+            
+            if (!name) return alert('請輸入姓名');
+            if (isManager && !password) return alert('請輸入密碼');
+            
+            await addDoc(collection(db, 'users'), {
+                name, level, isManager, password, subordinates
+            });
+            
+            alert('新增成功');
+            document.getElementById('modal').classList.remove('active');
+            await loadUsersAdmin();
+            await loadUsers();
+        }
+
+        // Update User
+        async function updateUser(userId) {
+            const name = document.getElementById('user-name').value;
+            const level = document.getElementById('user-level').value;
+            const isManager = document.getElementById('user-isManager').checked;
+            const password = isManager ? document.getElementById('user-password').value : '';
+            
+            const subordinates = [];
+            if (isManager) {
+                document.querySelectorAll('#subordinates-list input:checked').forEach(cb => {
+                    subordinates.push(cb.value);
+                });
+            }
+            
+            if (!name) return alert('請輸入姓名');
+            if (isManager && !password) return alert('請輸入密碼');
+            
+            await updateDoc(doc(db, 'users', userId), {
+                name, level, isManager, password, subordinates
+            });
+            
+            alert('更新成功');
+            document.getElementById('modal').classList.remove('active');
+            await loadUsersAdmin();
+            await loadUsers();
+        }
+
+        // Delete User
+        async function deleteUser(userId) {
+            if (!confirm('確定刪除？')) return;
+            await deleteDoc(doc(db, 'users', userId));
+            alert('已刪除');
+            await loadUsersAdmin();
+            await loadUsers();
+        }
+
+        // Load Courses Admin
+        async function loadCoursesAdmin() {
+            const snap = await getDocs(collection(db, 'courses'));
+            allCourses = [];
+            snap.forEach(d => allCourses.push({ id: d.id, ...d.data() }));
+            
+            let html = '<table><thead><tr><th>編號</th><th>課程</th><th>講師</th><th>時數</th><th>完訓日期</th><th>學員數</th><th>操作</th></tr></thead><tbody>';
+            allCourses.forEach(c => {
+                html += `<tr>
+                    <td>${c.code}</td>
+                    <td>${c.name}</td>
+                    <td>${c.teacher || '未定'}</td>
+                    <td>${c.hours || 0}h</td>
+                    <td>${c.completionDate || '未定'}</td>
+                    <td>${c.assignedStudents ? c.assignedStudents.length : 0}</td>
+                    <td>
+                        <button class="btn btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" data-edit-course="${c.id}">編輯</button>
+                        <button class="btn" style="width:auto; padding:6px 12px; font-size:12px; background:var(--danger); color:white;" data-delete-course="${c.id}">刪除</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('coursesContent').innerHTML = html;
+            
+            // Attach event listeners
+            document.querySelectorAll('[data-edit-course]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const courseId = e.target.getAttribute('data-edit-course');
+                    editCourse(courseId);
+                });
+            });
+            
+            document.querySelectorAll('[data-delete-course]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const courseId = e.target.getAttribute('data-delete-course');
+                    deleteCourse(courseId);
+                });
+            });
+        }
+
+        // Show Course Modal
+        function showCourseModal() {
+            const modal = document.getElementById('modal');
+            
+            let studentsHtml = '';
+            allUsers.forEach(u => {
+                studentsHtml += `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${u.id}">
+                        <span>${u.name}</span>
+                    </label>
+                `;
+            });
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>新增課程</h2>
+                    <div class="form-group">
+                        <label class="form-label">課程編號 (格式: HH115XX)</label>
+                        <input type="text" id="course-code" class="form-input" placeholder="HH11501">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">課程名稱</label>
+                        <input type="text" id="course-name" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">講師</label>
+                        <input type="text" id="course-teacher" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">課程時數</label>
+                        <input type="number" id="course-hours" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">上課日期 (多天請用逗號分隔)</label>
+                        <input type="text" id="course-dates" class="form-input" placeholder="2026-02-10,2026-02-11">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">完訓日期</label>
+                        <input type="date" id="course-completion" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="course-cert"> 有證書/證照
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">指派學員</label>
+                        <div id="students-list" class="checkbox-group">${studentsHtml}</div>
+                    </div>
+                    <button class="btn btn-success" id="saveCourseBtn">儲存</button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            
+            document.getElementById('saveCourseBtn').addEventListener('click', saveCourse);
+        }
+
+        // Edit Course
+        async function editCourse(courseId) {
+            const course = allCourses.find(c => c.id === courseId);
+            const modal = document.getElementById('modal');
+            
+            let studentsHtml = '';
+            allUsers.forEach(u => {
+                const checked = course.assignedStudents && course.assignedStudents.includes(u.id) ? 'checked' : '';
+                studentsHtml += `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${u.id}" ${checked}>
+                        <span>${u.name}</span>
+                    </label>
+                `;
+            });
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>編輯課程</h2>
+                    <div class="form-group">
+                        <label class="form-label">課程編號</label>
+                        <input type="text" id="course-code" class="form-input" value="${course.code}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">課程名稱</label>
+                        <input type="text" id="course-name" class="form-input" value="${course.name}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">講師</label>
+                        <input type="text" id="course-teacher" class="form-input" value="${course.teacher || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">課程時數</label>
+                        <input type="number" id="course-hours" class="form-input" value="${course.hours || 0}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">上課日期</label>
+                        <input type="text" id="course-dates" class="form-input" value="${course.dates ? course.dates.join(',') : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">完訓日期</label>
+                        <input type="date" id="course-completion" class="form-input" value="${course.completionDate || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="course-cert" ${course.hasCertificate?'checked':''}> 有證書/證照
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">指派學員</label>
+                        <div id="students-list" class="checkbox-group">${studentsHtml}</div>
+                    </div>
+                    <button class="btn btn-success" id="updateCourseBtn">更新</button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            
+            document.getElementById('updateCourseBtn').addEventListener('click', () => updateCourse(courseId));
+        }
+
+        // Save Course
+        async function saveCourse() {
+            const code = document.getElementById('course-code').value;
+            const name = document.getElementById('course-name').value;
+            const teacher = document.getElementById('course-teacher').value;
+            const hours = parseInt(document.getElementById('course-hours').value) || 0;
+            const datesStr = document.getElementById('course-dates').value;
+            const completion = document.getElementById('course-completion').value;
+            const hasCert = document.getElementById('course-cert').checked;
+            
+            const dates = datesStr.split(',').map(d => d.trim()).filter(d => d);
+            const year = code.match(/HH(\d{3})/);
+            const yearCode = year ? year[1] : '';
+            
+            const assignedStudents = [];
+            document.querySelectorAll('#students-list input:checked').forEach(cb => {
+                assignedStudents.push(cb.value);
+            });
+            
+            if (!code || !name) return alert('請輸入課程編號和名稱');
+            
+            await addDoc(collection(db, 'courses'), {
+                code, name, teacher, hours, dates, 
+                completionDate: completion, 
+                hasCertificate: hasCert,
+                year: yearCode, 
+                assignedStudents,
+                attendedStudents: []
+            });
+            
+            alert('新增成功');
+            document.getElementById('modal').classList.remove('active');
+            await loadCoursesAdmin();
+        }
+
+        // Update Course
+        async function updateCourse(courseId) {
+            const code = document.getElementById('course-code').value;
+            const name = document.getElementById('course-name').value;
+            const teacher = document.getElementById('course-teacher').value;
+            const hours = parseInt(document.getElementById('course-hours').value) || 0;
+            const datesStr = document.getElementById('course-dates').value;
+            const completion = document.getElementById('course-completion').value;
+            const hasCert = document.getElementById('course-cert').checked;
+            
+            const dates = datesStr.split(',').map(d => d.trim()).filter(d => d);
+            const year = code.match(/HH(\d{3})/);
+            const yearCode = year ? year[1] : '';
+            
+            const assignedStudents = [];
+            document.querySelectorAll('#students-list input:checked').forEach(cb => {
+                assignedStudents.push(cb.value);
+            });
+            
+            if (!code || !name) return alert('請輸入課程編號和名稱');
+            
+            const courseDoc = await getDoc(doc(db, 'courses', courseId));
+            const attendedStudents = courseDoc.data().attendedStudents || [];
+            
+            await updateDoc(doc(db, 'courses', courseId), {
+                code, name, teacher, hours, dates, 
+                completionDate: completion, 
+                hasCertificate: hasCert,
+                year: yearCode, 
+                assignedStudents,
+                attendedStudents
+            });
+            
+            alert('更新成功');
+            document.getElementById('modal').classList.remove('active');
+            await loadCoursesAdmin();
+        }
+
+        // Delete Course
+        async function deleteCourse(courseId) {
+            if (!confirm('確定刪除？這將刪除所有相關記錄')) return;
+            await deleteDoc(doc(db, 'courses', courseId));
+            alert('已刪除');
+            await loadCoursesAdmin();
+        }
+
+        // Load Attendance Admin
+        async function loadAttendanceAdmin() {
+            const container = document.getElementById('attendanceContent');
+            
+            if (allCourses.length === 0) {
+                const coursesSnap = await getDocs(collection(db, 'courses'));
+                allCourses = [];
+                coursesSnap.forEach(d => allCourses.push({ id: d.id, ...d.data() }));
+            }
+            
+            if (allCourses.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px;">請先建立課程</div>';
+                return;
+            }
+            
+            let html = '<div class="form-group"><label class="form-label">選擇課程</label><select id="att-course" class="form-select">';
+            html += '<option value="">-- 請選擇課程 --</option>';
+            allCourses.forEach(c => {
+                html += `<option value="${c.id}">${c.code} - ${c.name}</option>`;
+            });
+            html += '</select></div>';
+            html += '<div id="attendance-details"></div>';
+            
+            container.innerHTML = html;
+            
+            document.getElementById('att-course').addEventListener('change', loadCourseAttendance);
+        }
+
+        // Load Course Attendance
+        async function loadCourseAttendance() {
+            const courseId = document.getElementById('att-course').value;
+            const container = document.getElementById('attendance-details');
+            
+            if (!courseId) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const course = allCourses.find(c => c.id === courseId);
+            const assigned = course.assignedStudents || [];
+            const attended = course.attendedStudents || [];
+            
+            if (assigned.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light);">此課程尚未指派學員</div>';
+                return;
+            }
+            
+            let html = '<h4 style="margin: 20px 0;">出席登錄</h4>';
+            html += '<div class="checkbox-group">';
+            
+            assigned.forEach(userId => {
+                const user = allUsers.find(u => u.id === userId);
+                if (user) {
+                    const checked = attended.includes(userId) ? 'checked' : '';
+                    html += `
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="${userId}" ${checked} data-course-id="${courseId}" data-user-id="${userId}" class="attendance-check">
+                            <span>${user.name}</span>
+                        </label>
+                    `;
+                }
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            
+            // Attach event listeners
+            document.querySelectorAll('.attendance-check').forEach(cb => {
+                cb.addEventListener('change', async function() {
+                    const courseId = this.getAttribute('data-course-id');
+                    const userId = this.getAttribute('data-user-id');
+                    await updateAttendance(courseId, userId, this.checked);
+                });
+            });
+        }
+
+        // Update Attendance
+        async function updateAttendance(courseId, userId, isAttended) {
+            const course = allCourses.find(c => c.id === courseId);
+            let attended = course.attendedStudents || [];
+            
+            if (isAttended) {
+                if (!attended.includes(userId)) attended.push(userId);
+            } else {
+                attended = attended.filter(id => id !== userId);
+            }
+            
+            await updateDoc(doc(db, 'courses', courseId), {
+                attendedStudents: attended
+            });
+            
+            course.attendedStudents = attended;
+        }
+
+        // Load Progress Admin
+        async function loadProgressAdmin() {
+            const [coursesSnap, satSnap, refSnap, evalSnap] = await Promise.all([
+                getDocs(collection(db, 'courses')),
+                getDocs(collection(db, 'satisfactionSurveys')),
+                getDocs(collection(db, 'reflectionReports')),
+                getDocs(collection(db, 'performanceEvaluations'))
+            ]);
+            
+            // Satisfaction Progress
+            const satSubmitted = {};
+            satSnap.forEach(d => {
+                const data = d.data();
+                if (!satSubmitted[data.courseCode]) satSubmitted[data.courseCode] = [];
+                satSubmitted[data.courseCode].push(data.userName);
+            });
+            
+            let satHtml = '<table><thead><tr><th>課程</th><th>應填</th><th>已填</th><th>完成率</th><th>未填學員</th></tr></thead><tbody>';
+            coursesSnap.forEach(d => {
+                const c = d.data();
+                const total = c.attendedStudents ? c.attendedStudents.length : 0;
+                const completed = satSubmitted[c.code] ? satSubmitted[c.code].length : 0;
+                const rate = total > 0 ? Math.round((completed/total)*100) : 0;
+                const pending = (c.attendedStudents || [])
+                    .filter(id => {
+                        const user = allUsers.find(u => u.id === id);
+                        return satSubmitted[c.code] ? !satSubmitted[c.code].includes(user ? user.name : '') : true;
+                    })
+                    .map(id => {
+                        const user = allUsers.find(u => u.id === id);
+                        return user ? user.name : '';
+                    })
+                    .join(', ') || '全部完成';
+                    
+                satHtml += `<tr>
+                    <td>${c.code} - ${c.name}</td>
+                    <td>${total}</td>
+                    <td>${completed}</td>
+                    <td>${rate}%</td>
+                    <td style="color:${pending==='全部完成'?'var(--success)':'var(--danger)'};">${pending}</td>
+                </tr>`;
+            });
+            satHtml += '</tbody></table>';
+            document.getElementById('progressSatisfaction').innerHTML = satHtml;
+            
+            // Reflection Progress
+            const refSubmitted = {};
+            refSnap.forEach(d => {
+                const data = d.data();
+                if (!data.isDraft) {
+                    if (!refSubmitted[data.courseCode]) refSubmitted[data.courseCode] = [];
+                    refSubmitted[data.courseCode].push(data.userName);
+                }
+            });
+            
+            let refHtml = '<table><thead><tr><th>課程</th><th>應填</th><th>已填</th><th>完成率</th><th>未填學員</th></tr></thead><tbody>';
+            coursesSnap.forEach(d => {
+                const c = d.data();
+                const total = c.attendedStudents ? c.attendedStudents.length : 0;
+                const completed = refSubmitted[c.code] ? refSubmitted[c.code].length : 0;
+                const rate = total > 0 ? Math.round((completed/total)*100) : 0;
+                const pending = (c.attendedStudents || [])
+                    .filter(id => {
+                        const user = allUsers.find(u => u.id === id);
+                        return refSubmitted[c.code] ? !refSubmitted[c.code].includes(user ? user.name : '') : true;
+                    })
+                    .map(id => {
+                        const user = allUsers.find(u => u.id === id);
+                        return user ? user.name : '';
+                    })
+                    .join(', ') || '全部完成';
+                    
+                refHtml += `<tr>
+                    <td>${c.code} - ${c.name}</td>
+                    <td>${total}</td>
+                    <td>${completed}</td>
+                    <td>${rate}%</td>
+                    <td style="color:${pending==='全部完成'?'var(--success)':'var(--danger)'};">${pending}</td>
+                </tr>`;
+            });
+            refHtml += '</tbody></table>';
+            document.getElementById('progressReflection').innerHTML = refHtml;
+            
+            // Evaluation Progress
+            const evalSubmitted = {};
+            evalSnap.forEach(d => {
+                const data = d.data();
+                const key = `${data.courseCode}-${data.managerId}`;
+                if (!evalSubmitted[key]) evalSubmitted[key] = [];
+                evalSubmitted[key].push(data.studentName);
+            });
+            
+            const today = new Date();
+            let evalHtml = '<table><thead><tr><th>課程</th><th>主管</th><th>應評估</th><th>已評估</th><th>完成率</th><th>未評估學員</th></tr></thead><tbody>';
+            
+            const managers = allUsers.filter(u => u.isManager && u.subordinates && u.subordinates.length > 0);
+            
+            coursesSnap.forEach(d => {
+                const c = d.data();
+                if (!c.completionDate) return;
+                
+                const compDate = new Date(c.completionDate);
+                const evalDate = new Date(compDate);
+                evalDate.setDate(evalDate.getDate() + 30);
+                
+                if (today < evalDate) return;
+                
+                managers.forEach(mgr => {
+                    const subordinates = c.attendedStudents ? c.attendedStudents.filter(id => mgr.subordinates.includes(id)) : [];
+                    if (subordinates.length === 0) return;
+                    
+                    const key = `${c.code}-${mgr.id}`;
+                    const completed = evalSubmitted[key] ? evalSubmitted[key].length : 0;
+                    const total = subordinates.length;
+                    const rate = total > 0 ? Math.round((completed/total)*100) : 0;
+                    const pending = subordinates
+                        .filter(id => {
+                            const user = allUsers.find(u => u.id === id);
+                            return evalSubmitted[key] ? !evalSubmitted[key].includes(user ? user.name : '') : true;
+                        })
+                        .map(id => {
+                            const user = allUsers.find(u => u.id === id);
+                            return user ? user.name : '';
+                        })
+                        .join(', ') || '全部完成';
+                    
+                    evalHtml += `<tr>
+                        <td>${c.code} - ${c.name}</td>
+                        <td>${mgr.name}</td>
+                        <td>${total}</td>
+                        <td>${completed}</td>
+                        <td>${rate}%</td>
+                        <td style="color:${pending==='全部完成'?'var(--success)':'var(--danger)'};">${pending}</td>
+                    </tr>`;
+                });
+            });
+            
+            evalHtml += '</tbody></table>';
+            document.getElementById('progressEvaluation').innerHTML = evalHtml || '<div style="text-align:center; padding:20px;">目前沒有待評估項目</div>';
+        }
+
+        // Load Records Admin
+        async function loadRecordsAdmin() {
+            const [coursesSnap, satSnap, refSnap, evalSnap] = await Promise.all([
+                getDocs(collection(db, 'courses')),
+                getDocs(collection(db, 'satisfactionSurveys')),
+                getDocs(collection(db, 'reflectionReports')),
+                getDocs(collection(db, 'performanceEvaluations'))
+            ]);
+            
+            let html = '<table><thead><tr><th>姓名</th><th>職級</th><th>課程編號</th><th>課程名稱</th><th>完訓日期</th><th>時數</th><th>證書</th><th>滿意度</th><th>心得</th><th>評估</th></tr></thead><tbody>';
+            
+            allUsers.forEach(user => {
+                coursesSnap.forEach(d => {
+                    const c = d.data();
+                    if (!c.attendedStudents || !c.attendedStudents.includes(user.id)) return;
+                    
+                    const hasSat = satSnap.docs.some(sd => sd.data().userId === user.id && sd.data().courseCode === c.code);
+                    const hasRef = refSnap.docs.some(rd => rd.data().userId === user.id && rd.data().courseCode === c.code && !rd.data().isDraft);
+                    
+                    const evals = evalSnap.docs.filter(ed => ed.data().studentId === user.id && ed.data().courseCode === c.code);
+                    let avgEval = '-';
+                    if (evals.length > 0) {
+                        const sum = evals.reduce((acc, ed) => acc + ed.data().totalScore, 0);
+                        avgEval = (sum / evals.length).toFixed(1);
+                    }
+                    
+                    html += `<tr data-year="${c.year}">
+                        <td>${user.name}</td>
+                        <td>${user.level}</td>
+                        <td>${c.code}</td>
+                        <td>${c.name}</td>
+                        <td>${c.completionDate || '-'}</td>
+                        <td>${c.hours || 0}</td>
+                        <td>${c.hasCertificate ? '✓' : ''}</td>
+                        <td>${hasSat ? '✓' : ''}</td>
+                        <td>${hasRef ? '✓' : ''}</td>
+                        <td>${avgEval}</td>
+                    </tr>`;
+                });
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('recordsContent').innerHTML = html;
+        }
+
+        // Export Records
+        function exportRecords() {
+            let csv = '姓名,職級,課程編號,課程名稱,完訓日期,時數,證書,滿意度,心得,評估平均\n';
+            
+            const rows = document.querySelectorAll('#recordsContent tbody tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const rowData = [];
+                cells.forEach(cell => rowData.push(cell.textContent));
+                csv += rowData.join(',') + '\n';
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `受訓紀錄_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
