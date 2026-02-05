@@ -387,6 +387,301 @@
             .tab-nav { flex-wrap: nowrap; }
             .btn-group { flex-direction: column; }
         }
+    
+        /* 列印樣式 */
+        @media print {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+            
+            * {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            body { 
+                background: white !important; 
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            .container { 
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            /* 隱藏所有系統元素 */
+            .header, 
+            .tab-nav, 
+            .btn, 
+            .btn-print,
+            #report-course-select, 
+            .form-group,
+            #view-admin > h2,
+            #admin-satisfaction-report > h3 { 
+                display: none !important; 
+            }
+            
+            .card {
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            
+            .report-container { 
+                box-shadow: none !important;
+                padding: 15mm 10mm !important;
+                margin: 0 !important;
+                page-break-after: always;
+                border: none !important;
+            }
+            
+            .report-header {
+                margin-bottom: 8px !important;
+            }
+            
+            .report-title {
+                font-size: 20px !important;
+                margin-bottom: 3px !important;
+            }
+            
+            .report-subtitle {
+                font-size: 16px !important;
+                margin-bottom: 8px !important;
+            }
+            
+            .report-date {
+                margin-bottom: 8px !important;
+                font-size: 13px !important;
+            }
+            
+            .date-input {
+                border-bottom: 1px solid #333 !important;
+                font-size: 13px !important;
+            }
+            
+            .report-table {
+                margin-bottom: 8px !important;
+                page-break-inside: avoid;
+            }
+            
+            .report-table th,
+            .report-table td {
+                padding: 4px 6px !important;
+                font-size: 11px !important;
+                line-height: 1.3 !important;
+            }
+            
+            .comment-section {
+                margin-top: 8px !important;
+                padding: 8px !important;
+                min-height: 60px !important;
+                max-height: 80px !important;
+                page-break-inside: avoid;
+            }
+            
+            .comment-title {
+                font-size: 12px !important;
+                margin-bottom: 5px !important;
+            }
+            
+            .comment-input {
+                font-size: 11px !important;
+                line-height: 1.4 !important;
+                min-height: 40px !important;
+            }
+            
+            /* 隱藏學員意見回饋區塊（列印時不顯示） */
+            .report-container > div[style*="margin-top: 20px"] {
+                display: none !important;
+            }
+            
+            .signature-section {
+                margin-top: 10px !important;
+                page-break-inside: avoid;
+            }
+            
+            .signature-cell {
+                padding: 8px !important;
+                min-height: 50px !important;
+                font-size: 11px !important;
+            }
+            
+            .signature-label {
+                margin-bottom: 25px !important;
+                font-size: 11px !important;
+            }
+            
+            /* 確保整個報告在一頁 */
+            .report-container * {
+                page-break-inside: avoid;
+            }
+        }
+        
+        .report-container {
+            background: white;
+            padding: 30px;
+            margin-top: 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-width: 210mm;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .report-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .report-subtitle {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .report-date {
+            text-align: right;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .date-input {
+            width: 60px;
+            padding: 4px;
+            border: none;
+            border-bottom: 1px solid #333;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .report-table th,
+        .report-table td {
+            border: 1px solid #333;
+            padding: 8px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .report-table th {
+            background: #f0f0f0;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .report-table td {
+            text-align: left;
+        }
+        
+        .score-cell {
+            text-align: center;
+        }
+        
+        .section-title {
+            background: #e0e0e0;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .comment-section {
+            margin-top: 20px;
+            border: 1px solid #333;
+            padding: 15px;
+            min-height: 150px;
+        }
+        
+        .comment-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .comment-input {
+            width: 100%;
+            min-height: 100px;
+            border: none;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .signature-section {
+            margin-top: 30px;
+            border: 1px solid #333;
+        }
+        
+        .signature-row {
+            display: flex;
+            border-bottom: 1px solid #333;
+        }
+        
+        .signature-row:last-child {
+            border-bottom: none;
+        }
+        
+        .signature-cell {
+            flex: 1;
+            padding: 15px;
+            border-right: 1px solid #333;
+            text-align: center;
+            min-height: 80px;
+        }
+        
+        .signature-cell:last-child {
+            border-right: none;
+        }
+        
+        .signature-label {
+            font-weight: 600;
+            margin-bottom: 40px;
+        }
+        
+        .btn-print {
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .btn-print:hover {
+            background: var(--primary-dark);
+        }
+        
+        @media (max-width: 768px) {
+            .report-container {
+                padding: 20px;
+            }
+            
+            .report-table {
+                font-size: 12px;
+            }
+            
+            .report-table th,
+            .report-table td {
+                padding: 6px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -473,6 +768,7 @@
                 <button class="tab-btn" data-admin-tab="users">人員管理</button>
                 <button class="tab-btn" data-admin-tab="courses">課程管理</button>
                 <button class="tab-btn" data-admin-tab="attendance">受訓登錄</button>
+                <button class="tab-btn" data-admin-tab="satisfaction-report">滿意度統計</button>
                 <button class="tab-btn" data-admin-tab="progress">進度追蹤</button>
                 <button class="tab-btn" data-admin-tab="records">受訓紀錄</button>
             </div>
@@ -529,6 +825,18 @@
                 <div id="progressReflection"></div>
                 <div class="section-header">成效評估進度</div>
                 <div id="progressEvaluation"></div>
+            </div>
+            
+            
+            <div id="admin-satisfaction-report" class="admin-tab hidden">
+                <h3 style="margin-bottom: 16px;">滿意度調查統計報告</h3>
+                <div class="form-group">
+                    <label class="form-label">選擇課程</label>
+                    <select id="report-course-select" class="form-select">
+                        <option value="">-- 請選擇課程 --</option>
+                    </select>
+                </div>
+                <div id="satisfaction-report-content"></div>
             </div>
             
             <div id="admin-records" class="admin-tab hidden">
@@ -698,6 +1006,7 @@
             else if (tab === 'users') loadUsersAdmin();
             else if (tab === 'courses') loadCoursesAdmin();
             else if (tab === 'attendance') loadAttendanceAdmin();
+            else if (tab === 'satisfaction-report') loadSatisfactionReport();
             else if (tab === 'progress') loadProgressAdmin();
             else if (tab === 'records') loadRecordsAdmin();
         }
@@ -2009,6 +2318,222 @@
             link.href = URL.createObjectURL(blob);
             link.download = `受訓紀錄_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
+        }
+    
+        // Load Satisfaction Report
+        async function loadSatisfactionReport() {
+            const select = document.getElementById('report-course-select');
+            
+            if (allCourses.length === 0) {
+                const coursesSnap = await getDocs(collection(db, 'courses'));
+                allCourses = [];
+                coursesSnap.forEach(d => allCourses.push({ id: d.id, ...d.data() }));
+            }
+            
+            select.innerHTML = '<option value="">-- 請選擇課程 --</option>';
+            allCourses.forEach(c => {
+                select.innerHTML += `<option value="${c.code}">${c.code} - ${c.name}</option>`;
+            });
+            
+            select.onchange = generateSatisfactionReport;
+        }
+
+        // Generate Satisfaction Report
+        async function generateSatisfactionReport() {
+            const courseCode = document.getElementById('report-course-select').value;
+            const container = document.getElementById('satisfaction-report-content');
+            
+            if (!courseCode) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            // 獲取課程資訊
+            const course = allCourses.find(c => c.code === courseCode);
+            if (!course) return;
+            
+            // 獲取該課程的所有滿意度調查
+            const surveysSnap = await getDocs(
+                query(collection(db, 'satisfactionSurveys'), where('courseCode', '==', courseCode))
+            );
+            
+            if (surveysSnap.empty) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light);">此課程尚無滿意度調查數據</div>';
+                return;
+            }
+            
+            // 統計數據
+            const questionLabels = [
+                '1-1. 與課程主題相關之主題能力',
+                '1-2. 口語表達能力', 
+                '1-3. 激發學員的參與及學習意願能力',
+                '1-4. 授課內容與課程主題之契合度',
+                '1-5. 對時間的掌握能力',
+                '2-1. 學習到觀念與新技巧的滿意度',
+                '2-2. 解決工作上所面臨問題之啟發',
+                '2-3. 對達成工作目標的助益',
+                '2-4. 教材內容的滿意度',
+                '2-5. 課程時數安排滿意度',
+                '2-6. 本課程是否達到您的預期效果?',
+                '3-1. 對於訓練行政作業滿意度',
+                '3-2. 對於訓練場地之滿意度',
+                '3-3. 對於課程流程控管之品質滿意度',
+                '3-4. 若時間許可還有其他相關課程，您參加意願程度?'
+            ];
+            
+            // 計算每題的統計
+            const stats = Array(15).fill(0).map(() => ({
+                s5: 0, s4: 0, s3: 0, s2: 0, s1: 0, total: 0
+            }));
+            
+            let totalResponses = 0;
+            const comments = [];
+            
+            surveysSnap.forEach(doc => {
+                const data = doc.data();
+                totalResponses++;
+                
+                data.scores.forEach((score, idx) => {
+                    const s = parseInt(score);
+                    if (s === 5) stats[idx].s5++;
+                    else if (s === 4) stats[idx].s4++;
+                    else if (s === 3) stats[idx].s3++;
+                    else if (s === 2) stats[idx].s2++;
+                    else if (s === 1) stats[idx].s1++;
+                    stats[idx].total += s;
+                });
+                
+                if (data.answer1 || data.answer2) {
+                    comments.push({
+                        name: data.userName,
+                        answer1: data.answer1 || '',
+                        answer2: data.answer2 || ''
+                    });
+                }
+            });
+            
+            // 生成報告HTML
+            let html = `
+                <button class="btn-print" onclick="window.print()">🖨️ 列印報告</button>
+                
+                <div class="report-container">
+                    <div class="report-header">
+                        <div class="report-title">何鑫實業股份有限公司</div>
+                        <div class="report-subtitle">教育訓練總結報告</div>
+                    </div>
+                    
+                    <div class="report-date">
+                        <span>年</span>
+                        <input type="text" class="date-input" placeholder="115" id="report-year">
+                        <span>月</span>
+                        <input type="text" class="date-input" placeholder="02" id="report-month">
+                        <span>日</span>
+                        <input type="text" class="date-input" placeholder="05" id="report-day">
+                    </div>
+                    
+                    <table class="report-table">
+                        <tr>
+                            <th style="width: 15%;">訓練名稱</th>
+                            <td colspan="3">${course.name}</td>
+                            <th style="width: 15%;">訓練日期</th>
+                            <td>${course.completionDate || ''}</td>
+                        </tr>
+                        <tr>
+                            <th>講師姓名</th>
+                            <td colspan="3">${course.teacher || ''}</td>
+                            <th>訓練時數</th>
+                            <td>${course.hours || 0}</td>
+                        </tr>
+                        <tr>
+                            <th>訓練對象</th>
+                            <td colspan="3">全體同仁</td>
+                            <th>訓練人數</th>
+                            <td>${totalResponses}</td>
+                        </tr>
+                    </table>
+                    
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="width: 50%;">項目</th>
+                                <th colspan="5">生產管理流程分析與優化</th>
+                            </tr>
+                            <tr>
+                                <th>非常滿意(5)</th>
+                                <th>滿意(4)</th>
+                                <th>普通(3)</th>
+                                <th>不滿意(2)</th>
+                                <th>非常不滿意(1)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="section-title">
+                                <td colspan="6">一、講師之勝任程度：</td>
+                            </tr>
+            `;
+            
+            // 添加題目統計
+            questionLabels.forEach((label, idx) => {
+                if (idx === 5) {
+                    html += '<tr class="section-title"><td colspan="6">二、課程內容：</td></tr>';
+                } else if (idx === 11) {
+                    html += '<tr class="section-title"><td colspan="6">三、辦訓單位行政作業：</td></tr>';
+                }
+                
+                html += `
+                    <tr>
+                        <td>${label}</td>
+                        <td class="score-cell">${stats[idx].s5}</td>
+                        <td class="score-cell">${stats[idx].s4}</td>
+                        <td class="score-cell">${stats[idx].s3}</td>
+                        <td class="score-cell">${stats[idx].s2}</td>
+                        <td class="score-cell">${stats[idx].s1}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                    
+                    <div class="comment-section">
+                        <div class="comment-title">整體評估與建議</div>
+                        <textarea class="comment-input" id="report-comments" placeholder="請輸入整體評估與建議...">學員對講師之專業能力、課程安排皆表達高度認同，學員予以高滿意分數評價，許諾與期盼公司能持續安排此類教育訓練，俾使同仁皆可精進工作技能，提高個人競爭力及生產與營運績效，以強化企業化體質。</textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
+                        <strong>學員意見回饋：</strong>
+                        ${comments.map((c, i) => `
+                            <div style="margin: 10px 0; padding: 10px; border-left: 3px solid var(--primary);">
+                                <div style="font-weight: 600; color: var(--primary);">學員 ${i+1}: ${c.name}</div>
+                                ${c.answer1 ? `<div style="margin: 5px 0;"><strong>學習心得:</strong> ${c.answer1}</div>` : ''}
+                                ${c.answer2 ? `<div style="margin: 5px 0;"><strong>建議:</strong> ${c.answer2}</div>` : ''}
+                            </div>
+                        `).join('') || '<div style="padding: 10px;">無</div>'}
+                    </div>
+                    
+                    <table class="signature-section">
+                        <tr class="signature-row">
+                            <td class="signature-cell" colspan="3">
+                                <div class="signature-label">人資單位</div>
+                            </td>
+                        </tr>
+                        <tr class="signature-row">
+                            <td class="signature-cell">
+                                <div class="signature-label">參訓單位主管</div>
+                            </td>
+                            <td class="signature-cell">
+                                <div class="signature-label">主管</div>
+                            </td>
+                            <td class="signature-cell">
+                                <div class="signature-label">承辦人</div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+            
+            container.innerHTML = html;
         }
     </script>
 </body>
