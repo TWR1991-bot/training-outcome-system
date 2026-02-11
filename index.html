@@ -766,6 +766,42 @@
                 width: 10% !important;
             }
         }
+    
+        /* 固定表格標題 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            position: relative;
+        }
+        
+        table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        table thead th {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--primary-dark);
+        }
+        
+        table tbody tr {
+            border-bottom: 1px solid var(--border);
+        }
+        
+        table tbody tr:hover {
+            background: #f5f5f5;
+        }
+        
+        table tbody td {
+            padding: 12px;
+        }
     </style>
 </head>
 <body>
@@ -1636,11 +1672,11 @@
             });
             document.getElementById('stat-eval').textContent = pendingEval;
             
-            // Recent courses
+            // Recent courses - 按課程編號排序（遞增）
             const sorted = allCourses.sort((a, b) => {
-                const dateA = a.completionDate ? new Date(a.completionDate) : new Date(0);
-                const dateB = b.completionDate ? new Date(b.completionDate) : new Date(0);
-                return dateB - dateA;
+                const codeA = a.code || '';
+                const codeB = b.code || '';
+                return codeA.localeCompare(codeB);
             });
             
             // 需要先獲取滿意度和評估數據來計算統計
@@ -2284,8 +2320,19 @@
             });
             
             let satHtml = '<table><thead><tr><th>課程</th><th>應填</th><th>已填</th><th>完成率</th><th>未填學員</th></tr></thead><tbody>';
+            
+            // 將課程轉為陣列並按編號排序
+            const coursesList = [];
             coursesSnap.forEach(d => {
-                const c = d.data();
+                coursesList.push({ id: d.id, ...d.data() });
+            });
+            coursesList.sort((a, b) => {
+                const codeA = a.code || '';
+                const codeB = b.code || '';
+                return codeA.localeCompare(codeB);
+            });
+            
+            coursesList.forEach(c => {
                 const total = c.attendedStudents ? c.attendedStudents.length : 0;
                 const completed = satSubmitted[c.code] ? satSubmitted[c.code].length : 0;
                 const rate = total > 0 ? Math.round((completed/total)*100) : 0;
@@ -2322,8 +2369,9 @@
             });
             
             let refHtml = '<table><thead><tr><th>課程</th><th>應填</th><th>已填</th><th>完成率</th><th>未填學員</th></tr></thead><tbody>';
-            coursesSnap.forEach(d => {
-                const c = d.data();
+            
+            // 使用已排序的課程列表
+            coursesList.forEach(c => {
                 const total = c.attendedStudents ? c.attendedStudents.length : 0;
                 const completed = refSubmitted[c.code] ? refSubmitted[c.code].length : 0;
                 const rate = total > 0 ? Math.round((completed/total)*100) : 0;
@@ -2418,9 +2466,20 @@
             
             let html = '<table><thead><tr><th>姓名</th><th>職級</th><th>課程編號</th><th>課程名稱</th><th>完訓日期</th><th>時數</th><th>證書</th><th>滿意度</th><th>心得</th><th>評估</th></tr></thead><tbody>';
             
-            allUsers.forEach(user => {
-                coursesSnap.forEach(d => {
-                    const c = d.data();
+            // 將課程轉為陣列並按編號排序
+            const recordCoursesList = [];
+            coursesSnap.forEach(d => {
+                recordCoursesList.push({ id: d.id, ...d.data() });
+            });
+            recordCoursesList.sort((a, b) => {
+                const codeA = a.code || '';
+                const codeB = b.code || '';
+                return codeA.localeCompare(codeB);
+            });
+            
+            // 先按課程排序，再按用戶
+            recordCoursesList.forEach(c => {
+                allUsers.forEach(user => {
                     if (!c.attendedStudents || !c.attendedStudents.includes(user.id)) return;
                     
                     const hasSat = satSnap.docs.some(sd => sd.data().userId === user.id && sd.data().courseCode === c.code);
