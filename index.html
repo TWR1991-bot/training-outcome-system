@@ -466,32 +466,55 @@
             .report-table {
                 margin-bottom: 8px !important;
                 page-break-inside: avoid;
+                table-layout: fixed !important;
             }
             
             .report-table th,
             .report-table td {
-                padding: 4px 6px !important;
+                padding: 6px !important;
                 font-size: 11px !important;
-                line-height: 1.3 !important;
+                line-height: 1.4 !important;
+                word-wrap: break-word !important;
+            }
+            
+            /* 課程名稱列高固定 */
+            .course-name-cell {
+                min-height: 40px !important;
+                max-height: 60px !important;
+                line-height: 1.5 !important;
+                padding: 8px 6px !important;
+            }
+            
+            /* 評分欄位等寬 */
+            .score-header {
+                width: 12% !important;
+            }
+            
+            .question-cell {
+                width: 40% !important;
             }
             
             .comment-section {
                 margin-top: 8px !important;
                 padding: 8px !important;
-                min-height: 60px !important;
-                max-height: 80px !important;
+                min-height: 50px !important;
+                width: 100% !important;
                 page-break-inside: avoid;
+                overflow: hidden;
             }
             
             .comment-title {
-                font-size: 12px !important;
-                margin-bottom: 5px !important;
+                font-size: 11px !important;
+                margin-bottom: 4px !important;
+                font-weight: 600 !important;
             }
             
             .comment-input {
-                font-size: 11px !important;
-                line-height: 1.4 !important;
-                min-height: 40px !important;
+                font-size: 10px !important;
+                line-height: 1.5 !important;
+                min-height: 35px !important;
+                max-height: 70px !important;
+                overflow: hidden;
             }
             
             /* 隱藏學員意見回饋區塊（列印時不顯示） */
@@ -608,7 +631,8 @@
             margin-top: 20px;
             border: 1px solid #333;
             padding: 15px;
-            min-height: 150px;
+            min-height: 120px;
+            width: 100%;  /* 固定欄寬 */
         }
         
         .comment-title {
@@ -618,12 +642,13 @@
         
         .comment-input {
             width: 100%;
-            min-height: 100px;
+            min-height: 80px;
             border: none;
             resize: vertical;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1.6;
+            overflow-wrap: break-word;
         }
         
         .signature-section {
@@ -689,6 +714,56 @@
             .report-table th,
             .report-table td {
                 padding: 6px;
+            }
+        }
+    
+        /* 訓練成果報告專用樣式 */
+        .result-score-header {
+            width: 12%;  /* 4個評分項目，每個約15% */
+            text-align: center;
+        }
+        
+        .result-name-col {
+            width: 15%;
+            text-align: center;
+        }
+        
+        .result-avg-col {
+            width: 10%;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        /* 學員意見回饋區域固定寬度 */
+        .feedback-section {
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            min-height: 60px;
+        }
+        
+        @media print {
+            .feedback-section {
+                margin-top: 8px !important;
+                padding: 8px !important;
+                min-height: 40px !important;
+                max-height: 80px !important;
+                overflow: hidden;
+                page-break-inside: avoid;
+            }
+            
+            .result-score-header {
+                width: 12% !important;
+            }
+            
+            .result-name-col {
+                width: 15% !important;
+            }
+            
+            .result-avg-col {
+                width: 10% !important;
             }
         }
     </style>
@@ -817,7 +892,10 @@
             <div id="admin-courses" class="admin-tab hidden">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                     <h3>課程管理</h3>
-                    <button class="btn btn-primary" id="addCourseBtn" style="width: auto; padding: 10px 20px;">➕ 新增</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" id="addCourseBtn" style="width: auto; padding: 10px 20px;">➕ 新增</button>
+                        <button class="btn btn-secondary" id="refreshCoursesBtn" style="width: auto; padding: 10px 20px;">🔄 重新整理</button>
+                    </div>
                 </div>
                 <div id="coursesContent"></div>
             </div>
@@ -932,6 +1010,10 @@
             // Admin action buttons
             document.getElementById('addUserBtn').addEventListener('click', () => showUserModal());
             document.getElementById('addCourseBtn').addEventListener('click', () => showCourseModal());
+            document.getElementById('refreshCoursesBtn').addEventListener('click', () => {
+                loadCoursesAdmin();
+                alert('✅ 課程列表已重新整理');
+            });
             document.getElementById('exportBtn').addEventListener('click', exportRecords);
         }
 
@@ -1846,6 +1928,13 @@
             allCourses = [];
             snap.forEach(d => allCourses.push({ id: d.id, ...d.data() }));
             
+            // 按課程編號排序（遞增）
+            allCourses.sort((a, b) => {
+                const codeA = a.code || '';
+                const codeB = b.code || '';
+                return codeA.localeCompare(codeB);
+            });
+            
             let html = '<table><thead><tr><th>編號</th><th>課程</th><th>講師</th><th>時數</th><th>完訓日期</th><th>學員數</th><th>操作</th></tr></thead><tbody>';
             allCourses.forEach(c => {
                 html += `<tr>
@@ -2496,7 +2585,7 @@
                     <table class="report-table">
                         <tr>
                             <th style="width: 15%;">訓練名稱</th>
-                            <td colspan="3">${course.name}</td>
+                            <td colspan="3" class="course-name-cell">${course.name}</td>
                             <th style="width: 15%;">訓練日期</th>
                             <td>${course.completionDate || ''}</td>
                         </tr>
@@ -2517,12 +2606,12 @@
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th style="width: 50%;">項目</th>
-                                <th>非常滿意(5)</th>
-                                <th>滿意(4)</th>
-                                <th>普通(3)</th>
-                                <th>不滿意(2)</th>
-                                <th>非常不滿意(1)</th>
+                                <th class="question-cell">項目</th>
+                                <th class="score-header">非常滿意(5)</th>
+                                <th class="score-header">滿意(4)</th>
+                                <th class="score-header">普通(3)</th>
+                                <th class="score-header">不滿意(2)</th>
+                                <th class="score-header">非常不滿意(1)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2693,7 +2782,7 @@
                     <table class="report-table">
                         <tr>
                             <th style="width: 15%;">訓練名稱</th>
-                            <td colspan="3">${course.name}</td>
+                            <td colspan="3" class="course-name-cell">${course.name}</td>
                         </tr>
                         <tr>
                             <th>課程編號</th>
@@ -2714,12 +2803,12 @@
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th style="width: 15%;">員工姓名</th>
-                                <th style="width: 12%;">1-1. 工作品質改善</th>
-                                <th style="width: 12%;">1-2. 工作效率提升</th>
-                                <th style="width: 12%;">1-3. 專業知識提升</th>
-                                <th style="width: 12%;">1-4. 敬業態度提升</th>
-                                <th style="width: 10%;">平均</th>
+                                <th class="result-name-col">員工姓名</th>
+                                <th class="result-score-header">1-1. 工作品質改善</th>
+                                <th class="result-score-header">1-2. 工作效率提升</th>
+                                <th class="result-score-header">1-3. 專業知識提升</th>
+                                <th class="result-score-header">1-4. 敬業態度提升</th>
+                                <th class="result-avg-col">平均</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2786,6 +2875,182 @@
             
             container.innerHTML = html;
         }
+    
+        // 將備份函數暴露到全域，讓 onclick 可以調用
+        window.backupUsers = async function() {
+            const snap = await getDocs(collection(db, 'users'));
+            let csv = 'ID,姓名,職級,管理職,人資主管,密碼,部屬ID列表\n';
+            
+            snap.forEach(doc => {
+                const data = doc.data();
+                const row = [
+                    doc.id,
+                    data.name || '',
+                    data.level || '',
+                    data.isManager ? '是' : '否',
+                    data.isHR ? '是' : '否',
+                    data.password || '',
+                    (data.subordinates || []).join(';')
+                ];
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `人員資料備份_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        window.backupCourses = async function() {
+            const snap = await getDocs(collection(db, 'courses'));
+            let csv = 'ID,課程編號,課程名稱,講師,時數,上課日期,完訓日期,證書,年度,指派學員,出席學員\n';
+            
+            snap.forEach(doc => {
+                const data = doc.data();
+                const row = [
+                    doc.id,
+                    data.code || '',
+                    data.name || '',
+                    data.teacher || '',
+                    data.hours || 0,
+                    (data.dates || []).join(';'),
+                    data.completionDate || '',
+                    data.hasCertificate ? '是' : '否',
+                    data.year || '',
+                    (data.assignedStudents || []).join(';'),
+                    (data.attendedStudents || []).join(';')
+                ];
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `課程資料備份_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        window.backupSatisfaction = async function() {
+            const snap = await getDocs(collection(db, 'satisfactionSurveys'));
+            let csv = 'ID,課程編號,學員ID,學員姓名,年度,分數1-15,問答1,問答2,提交時間\n';
+            
+            snap.forEach(doc => {
+                const data = doc.data();
+                const row = [
+                    doc.id,
+                    data.courseCode || '',
+                    data.userId || '',
+                    data.userName || '',
+                    data.year || '',
+                    (data.scores || []).join(';'),
+                    data.answer1 || '',
+                    data.answer2 || '',
+                    data.submittedAt || ''
+                ];
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `滿意度調查備份_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        window.backupReflections = async function() {
+            const snap = await getDocs(collection(db, 'reflectionReports'));
+            let csv = 'ID,課程編號,學員ID,學員姓名,問答1,問答2,問答3,草稿,提交時間\n';
+            
+            snap.forEach(doc => {
+                const data = doc.data();
+                const row = [
+                    doc.id,
+                    data.courseCode || '',
+                    data.userId || '',
+                    data.userName || '',
+                    data.answer1 || '',
+                    data.answer2 || '',
+                    data.answer3 || '',
+                    data.isDraft ? '是' : '否',
+                    data.submittedAt || data.lastSavedAt || ''
+                ];
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `心得報告備份_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        window.backupEvaluations = async function() {
+            const snap = await getDocs(collection(db, 'performanceEvaluations'));
+            let csv = 'ID,課程編號,學員ID,學員姓名,主管ID,主管姓名,分數1-4,總分,結果,可評估日期,評估時間\n';
+            
+            snap.forEach(doc => {
+                const data = doc.data();
+                const row = [
+                    doc.id,
+                    data.courseCode || '',
+                    data.studentId || '',
+                    data.studentName || '',
+                    data.managerId || '',
+                    data.managerName || '',
+                    (data.scores || []).join(';'),
+                    data.totalScore || 0,
+                    data.result || '',
+                    data.availableFrom || '',
+                    data.evaluatedAt || ''
+                ];
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `成效評估備份_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        window.backupAll = async function() {
+            if (!confirm('確定要備份所有資料？\n這將下載5個CSV檔案。')) return;
+            
+            alert('開始備份...\n請稍候，將依序下載各項資料。');
+            
+            await window.backupUsers();
+            await new Promise(resolve => setTimeout(resolve, 800));
+            await window.backupCourses();
+            await new Promise(resolve => setTimeout(resolve, 800));
+            await window.backupSatisfaction();
+            await new Promise(resolve => setTimeout(resolve, 800));
+            await window.backupReflections();
+            await new Promise(resolve => setTimeout(resolve, 800));
+            await window.backupEvaluations();
+            
+            alert('✅ 備份完成！\n已下載5個CSV檔案。');
+        };
+
+        window.loadBackupPage = async function() {
+            const [usersSnap, coursesSnap, satSnap, refSnap, evalSnap] = await Promise.all([
+                getDocs(collection(db, 'users')),
+                getDocs(collection(db, 'courses')),
+                getDocs(collection(db, 'satisfactionSurveys')),
+                getDocs(collection(db, 'reflectionReports')),
+                getDocs(collection(db, 'performanceEvaluations'))
+            ]);
+            
+            document.getElementById('backup-users-count').textContent = usersSnap.size;
+            document.getElementById('backup-courses-count').textContent = coursesSnap.size;
+            document.getElementById('backup-surveys-count').textContent = satSnap.size;
+            document.getElementById('backup-evals-count').textContent = evalSnap.size;
+        };
     </script>
 </body>
 </html>
