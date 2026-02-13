@@ -866,6 +866,14 @@
             </div>
             
             <div id="admin-dashboard" class="admin-tab">
+                <!-- 年度選擇器 -->
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight: 600; margin-right: 10px;">選擇年度：</label>
+                    <select id="dashboard-year-filter" class="form-select" style="width: 200px; display: inline-block;">
+                    </select>
+                </div>
+                
+                <!-- 第一排統計卡片 -->
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="stat-courses">0</div>
@@ -875,6 +883,18 @@
                         <div class="stat-value" id="stat-users">0</div>
                         <div class="stat-label">總學員數</div>
                     </div>
+                    <div class="stat-card" style="background: #9c27b0;">
+                        <div class="stat-value" id="stat-teachers">0</div>
+                        <div class="stat-label">總講師數</div>
+                    </div>
+                    <div class="stat-card" style="background: #00bcd4;">
+                        <div class="stat-value" id="stat-hours">0</div>
+                        <div class="stat-label">課程總時數</div>
+                    </div>
+                </div>
+                
+                <!-- 第二排統計卡片 -->
+                <div class="stats-grid" style="margin-top: 20px;">
                     <div class="stat-card" style="background: var(--warning);">
                         <div class="stat-value" id="stat-pending">0</div>
                         <div class="stat-label">待填滿意度</div>
@@ -883,9 +903,23 @@
                         <div class="stat-value" id="stat-eval">0</div>
                         <div class="stat-label">待評估數</div>
                     </div>
+                    <div class="stat-card" style="background: #ff9800;">
+                        <div class="stat-value" id="stat-satisfaction-avg">0</div>
+                        <div class="stat-label">滿意度平均</div>
+                    </div>
+                    <div class="stat-card" style="background: #4caf50;">
+                        <div class="stat-value" id="stat-result-avg">0</div>
+                        <div class="stat-label">成果平均</div>
+                    </div>
                 </div>
                 <h3>近期課程</h3>
                 <div id="recentCourses"></div>
+                
+                <h3 style="margin-top: 40px;">學員受訓統計</h3>
+                <p style="color: #666; font-size: 14px; margin-top: 8px;">
+                    出席率 = 實際出席 ÷ 被指派課程數 × 100%
+                </p>
+                <div id="studentStats"></div>
             </div>
             
             <div id="admin-users" class="admin-tab hidden">
@@ -1619,6 +1653,54 @@
 
         // Admin Dashboard
         async function loadAdminDashboard() {
+            // 初始化年度選擇器
+            const yearSelect = document.getElementById('dashboard-year-filter');
+            if (yearSelect.options.length === 0) {
+                // 先取得所有課程，找出有資料的年度
+                const tempCoursesSnap = await getDocs(collection(db, 'courses'));
+                const yearsSet = new Set();
+                
+                tempCoursesSnap.forEach(d => {
+                    const course = d.data();
+                    if (course.completionDate) {
+                        const courseDate = new Date(course.completionDate);
+                        const courseYear = courseDate.getFullYear() - 1911; // 轉換成民國年
+                        yearsSet.add(courseYear);
+                    }
+                });
+                
+                // 將年度排序（新到舊）
+                const years = Array.from(yearsSet).sort((a, b) => b - a);
+                
+                // 只加入有資料的年度
+                if (years.length > 0) {
+                    years.forEach(year => {
+                        const option = document.createElement('option');
+                        option.value = year;
+                        option.textContent = year + '年';
+                        yearSelect.appendChild(option);
+                    });
+                    
+                    // 預設選擇最新年度
+                    yearSelect.value = years[0];
+                } else {
+                    // 如果沒有任何課程，使用當年度
+                    const currentYear = new Date().getFullYear() - 1911;
+                    const option = document.createElement('option');
+                    option.value = currentYear;
+                    option.textContent = currentYear + '年';
+                    yearSelect.appendChild(option);
+                    yearSelect.value = currentYear;
+                }
+                
+                // 綁定年度切換事件
+                yearSelect.onchange = function() {
+                    loadAdminDashboard();
+                };
+            }
+            
+            const selectedYear = yearSelect.value || (new Date().getFullYear() - 1911).toString();
+            
             const [coursesSnap, usersSnap, satSnap, evalSnap] = await Promise.all([
                 getDocs(collection(db, 'courses')),
                 getDocs(collection(db, 'users')),
@@ -1626,29 +1708,48 @@
                 getDocs(collection(db, 'performanceEvaluations'))
             ]);
             
-            document.getElementById('stat-courses').textContent = coursesSnap.size;
-            document.getElementById('stat-users').textContent = usersSnap.size;
-            
+            // 先建立所有課程陣列
             allCourses = [];
             coursesSnap.forEach(d => allCourses.push({ id: d.id, ...d.data() }));
             
-            // Calculate pending
+            // 篩選該年度的課程（使用民國年）
+            const yearCourses = allCourses.filter(course => {
+                if (!course.completionDate) return false;
+                const courseDate = new Date(course.completionDate);
+                const courseYear = courseDate.getFullYear() - 1911; // 轉換成民國年
+                return courseYear.toString() === selectedYear;
+            });
+            
+            // 統計數字計算
+            document.getElementById('stat-courses').textContent = yearCourses.length;
+            document.getElementById('stat-users').textContent = usersSnap.size;
+            
+            // 計算總講師數（去重）
+            const teachers = new Set();
+            yearCourses.forEach(c => {
+                if (c.teacher) teachers.add(c.teacher);
+            });
+            document.getElementById('stat-teachers').textContent = teachers.size;
+            
+            // 計算課程總時數
+            const totalHours = yearCourses.reduce((sum, c) => sum + (c.hours || 0), 0);
+            document.getElementById('stat-hours').textContent = totalHours + 'h';
+            
+            // Calculate pending (只計算該年度課程)
             let pendingSat = 0;
             const submittedSat = new Set(satSnap.docs.map(d => `${d.data().userId}-${d.data().courseCode}`));
-            coursesSnap.forEach(d => {
-                const c = d.data();
+            yearCourses.forEach(c => {
                 (c.attendedStudents || []).forEach(uid => {
                     if (!submittedSat.has(`${uid}-${c.code}`)) pendingSat++;
                 });
             });
             document.getElementById('stat-pending').textContent = pendingSat;
             
-            // Calculate pending eval
+            // Calculate pending eval (只計算該年度課程)
             const today = new Date();
             let pendingEval = 0;
             const evaluatedKeys = new Set(evalSnap.docs.map(d => `${d.data().courseCode}-${d.data().studentId}`));
-            coursesSnap.forEach(d => {
-                const c = d.data();
+            yearCourses.forEach(c => {
                 if (!c.completionDate) return;
                 const compDate = new Date(c.completionDate);
                 const evalDate = new Date(compDate);
@@ -1661,8 +1762,37 @@
             });
             document.getElementById('stat-eval').textContent = pendingEval;
             
+            // 計算滿意度平均分數（該年度）
+            let satTotal = 0, satCount = 0;
+            satSnap.forEach(d => {
+                const sat = d.data();
+                const course = yearCourses.find(c => c.code === sat.courseCode);
+                if (course) {
+                    const scores = sat.scores || [];
+                    const total = scores.reduce((sum, s) => sum + s, 0);
+                    const normalized = (total / 15 / 5) * 100;
+                    satTotal += normalized;
+                    satCount++;
+                }
+            });
+            const satAvg = satCount > 0 ? Math.round(satTotal / satCount) : 0;
+            document.getElementById('stat-satisfaction-avg').textContent = satAvg;
+            
+            // 計算成果平均分數（該年度）
+            let evalTotal = 0, evalCount = 0;
+            evalSnap.forEach(d => {
+                const ev = d.data();
+                const course = yearCourses.find(c => c.code === ev.courseCode);
+                if (course) {
+                    evalTotal += ev.totalScore || 0;
+                    evalCount++;
+                }
+            });
+            const evalAvg = evalCount > 0 ? Math.round(evalTotal / evalCount) : 0;
+            document.getElementById('stat-result-avg').textContent = evalAvg;
+            
             // Recent courses - 按課程編號排序（遞增）
-            const sorted = allCourses.sort((a, b) => {
+            const sorted = yearCourses.sort((a, b) => {
                 const codeA = a.code || '';
                 const codeB = b.code || '';
                 return codeA.localeCompare(codeB);
@@ -1683,44 +1813,132 @@
                 satSnap2.forEach(d => {
                     const sat = d.data();
                     if (sat.courseCode === c.code) {
-                        satTotal += sat.scores.reduce((a, b) => a + b, 0);
+                        const scores = sat.scores || [];
+                        const total = scores.reduce((sum, s) => sum + s, 0);
+                        const normalized = Math.round((total / 15 / 5) * 100);
+                        satTotal += normalized;
                         satCount++;
                     }
                 });
-                const satScore = satCount > 0 ? Math.round((satTotal / satCount / 15 / 5) * 100) : 0;
+                const satScore = satCount > 0 ? Math.round(satTotal / satCount) : '-';
                 
                 // 計算出席率
-                const assignedCount = c.assignedStudents ? c.assignedStudents.length : 0;
-                const attendedCount = c.attendedStudents ? c.attendedStudents.length : 0;
-                const attendanceRate = assignedCount > 0 ? Math.round((attendedCount / assignedCount) * 100) : 0;
+                const assigned = c.assignedStudents ? c.assignedStudents.length : 0;
+                const attended = c.attendedStudents ? c.attendedStudents.length : 0;
+                const attendRate = assigned > 0 ? Math.round((attended / assigned) * 100) + '%' : '-';
                 
-                // 計算成果總分 (換算成100分制)
-                let resultTotal = 0;
-                let resultCount = 0;
+                // 計算成果總分
+                let evalTotalCourse = 0;
+                let evalCountCourse = 0;
                 evalSnap2.forEach(d => {
                     const ev = d.data();
                     if (ev.courseCode === c.code) {
-                        resultTotal += ev.totalScore;
-                        resultCount++;
+                        evalTotalCourse += ev.totalScore || 0;
+                        evalCountCourse++;
                     }
                 });
-                const avgResult = resultCount > 0 ? Math.round((resultTotal / resultCount / 4 / 5) * 100) : '-';
+                const evalScore = evalCountCourse > 0 ? Math.round(evalTotalCourse / evalCountCourse) : '-';
                 
                 html += `<tr>
                     <td>${c.code}</td>
                     <td>${c.name}</td>
-                    <td>${c.teacher || '未定'}</td>
-                    <td>${c.completionDate || '未定'}</td>
-                    <td>${attendedCount}</td>
-                    <td style="text-align: center; font-weight: 600;">${satScore || '-'}</td>
-                    <td style="text-align: center;">${attendanceRate}%</td>
-                    <td style="text-align: center; font-weight: 600;">${avgResult}</td>
+                    <td>${c.teacher || '-'}</td>
+                    <td>${c.completionDate || '-'}</td>
+                    <td>${attended}</td>
+                    <td>${satScore}</td>
+                    <td>${attendRate}</td>
+                    <td>${evalScore}</td>
                 </tr>`;
             }
+            
             html += '</tbody></table>';
             document.getElementById('recentCourses').innerHTML = html;
+            
+            // ===== 學員受訓統計 =====
+            let studentStatsHtml = '<table><thead><tr><th>學員姓名</th><th>出席率</th><th>實際出席</th><th>未出席</th><th>平均分數</th><th>年度受訓班數</th><th>年度受訓時數</th></tr></thead><tbody>';
+            
+            // 計算每位學員的統計
+            const studentData = {};
+            
+            allUsers.forEach(user => {
+                studentData[user.id] = {
+                    name: user.name,
+                    assigned: 0,      // 被指派次數
+                    attended: 0,      // 實際出席次數
+                    totalScore: 0,
+                    scoreCount: 0,
+                    hours: 0
+                };
+            });
+            
+            // 統計該年度的數據
+            yearCourses.forEach(c => {
+                // 統計被指派（課程管理中的指派學員）
+                (c.assignedStudents || []).forEach(uid => {
+                    if (studentData[uid]) {
+                        studentData[uid].assigned++;
+                    }
+                });
+                
+                // 統計實際出席（受訓登錄中的出席學員）
+                (c.attendedStudents || []).forEach(uid => {
+                    if (studentData[uid]) {
+                        studentData[uid].attended++;
+                        studentData[uid].hours += c.hours || 0;
+                    }
+                });
+            });
+            
+            // 統計成績
+            evalSnap.forEach(d => {
+                const ev = d.data();
+                const course = yearCourses.find(c => c.code === ev.courseCode);
+                if (course && studentData[ev.studentId]) {
+                    studentData[ev.studentId].totalScore += ev.totalScore || 0;
+                    studentData[ev.studentId].scoreCount++;
+                }
+            });
+            
+            // 生成表格（只要有被指派或有出席就顯示）
+            Object.values(studentData)
+                .filter(s => s.assigned > 0 || s.attended > 0)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .forEach(s => {
+                    // 出席率 = 實際出席 / 被指派
+                    const attendanceRate = s.assigned > 0 
+                        ? Math.round((s.attended / s.assigned) * 100) 
+                        : 0;
+                    
+                    // 未出席 = 被指派 - 實際出席
+                    const absent = s.assigned - s.attended;
+                    
+                    const avgScore = s.scoreCount > 0 
+                        ? Math.round(s.totalScore / s.scoreCount) 
+                        : '-';
+                    
+                    studentStatsHtml += `<tr>
+                        <td>${s.name}</td>
+                        <td>${attendanceRate}%</td>
+                        <td>${s.attended}</td>
+                        <td>${absent}</td>
+                        <td>${avgScore}</td>
+                        <td>${s.attended}</td>
+                        <td>${s.hours}h</td>
+                    </tr>`;
+                });
+            
+            studentStatsHtml += '</tbody></table>';
+            
+            // 防錯處理
+            const studentStatsElement = document.getElementById('studentStats');
+            if (studentStatsElement) {
+                studentStatsElement.innerHTML = studentStatsHtml;
+            } else {
+                console.warn('studentStats 元素不存在');
+            }
         }
 
+        
         // Load Users Admin
         async function loadUsersAdmin() {
             const snap = await getDocs(collection(db, 'users'));
