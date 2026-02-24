@@ -1202,6 +1202,26 @@
             document.getElementById('view-login').classList.remove('hidden');
             document.getElementById('userTabs').classList.add('hidden');
             document.getElementById('managerTabs').classList.add('hidden');
+            
+            // 清空所有動態內容，避免下次登入看到上一個使用者的資料
+            const clearElements = [
+                'satisfactionList',
+                'reflectionList', 
+                'evaluationList',
+                'subordinatesList',
+                'coursesContent',
+                'attendanceContent',
+                'progressSatisfaction',
+                'progressReflection',
+                'progressEvaluation',
+                'recentCourses',
+                'studentStats'
+            ];
+            
+            clearElements.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) elem.innerHTML = '';
+            });
         }
 
         // Switch Tab
@@ -3043,98 +3063,82 @@
         }
         
         // View Reflections
-        async function viewReflections(courseCode) {
-            const modal = document.getElementById('modal');
-            
-            // 獲取課程資訊
-            const coursesSnap = await getDocs(collection(db, 'courses'));
-            let courseName = '';
-            coursesSnap.forEach(d => {
-                const c = d.data();
-                if (c.code === courseCode) {
-                    courseName = c.name;
-                }
-            });
-            
-            // 獲取心得報告
-            const refSnap = await getDocs(query(
-                collection(db, 'reflectionReports'),
-                where('courseCode', '==', courseCode),
-                where('isDraft', '==', false)
-            ));
-            
-            let reflectionsHtml = '';
-            refSnap.forEach(d => {
-                const r = d.data();
-                const submitDate = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
+        window.viewReflections = async function(courseCode) {
+            try {
+                const modal = document.getElementById('modal');
                 
-                reflectionsHtml += `
-                    <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; background: var(--bg);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <strong style="font-size: 16px;">${r.userName}</strong>
-                            <span style="color: var(--text-secondary); font-size: 14px;">提交時間：${submitDate}</span>
+                const coursesSnap = await getDocs(collection(db, 'courses'));
+                let courseName = '';
+                coursesSnap.forEach(d => {
+                    const c = d.data();
+                    if (c.code === courseCode) courseName = c.name;
+                });
+                
+                const refSnap = await getDocs(query(
+                    collection(db, 'reflectionReports'),
+                    where('courseCode', '==', courseCode),
+                    where('isDraft', '==', false)
+                ));
+                
+                let html = '';
+                refSnap.forEach(d => {
+                    const r = d.data();
+                    const date = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
+                    html += `<div style="border:1px solid #ddd; padding:16px; margin:8px; border-radius:8px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <strong>${r.userName}</strong>
+                            <span style="color:#666; font-size:14px;">${date}</span>
                         </div>
-                        <div style="white-space: pre-wrap; line-height: 1.6; color: var(--text);">
-                            ${r.content || '（無內容）'}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            if (!reflectionsHtml) {
-                reflectionsHtml = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">目前沒有心得報告</p>';
-            }
-            
-            modal.innerHTML = `
-                <div class="modal-content" style="max-width: 800px;">
+                        <div style="white-space:pre-wrap; line-height:1.6;">${r.content || '（無內容）'}</div>
+                    </div>`;
+                });
+                
+                if (!html) html = '<p style="text-align:center; padding:20px; color:#666;">目前沒有心得報告</p>';
+                
+                modal.innerHTML = `<div class="modal-content" style="max-width:800px;">
                     <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
                     <h2>${courseCode} - ${courseName}</h2>
-                    <h3 style="margin: 20px 0 16px 0; color: var(--primary);">學員心得報告</h3>
-                    <div style="max-height: 500px; overflow-y: auto;">
-                        ${reflectionsHtml}
+                    <h3 style="margin:20px 0 16px 0;">學員心得報告</h3>
+                    <div style="max-height:500px; overflow-y:auto;">${html}</div>
+                    <div style="margin-top:20px; text-align:right;">
+                        <button class="btn btn-secondary" onclick="window.exportReflections('${courseCode}','${courseName}')">匯出文字檔</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('modal').classList.remove('active')" style="margin-left:10px;">關閉</button>
                     </div>
-                    <div style="margin-top: 20px; text-align: right;">
-                        <button class="btn btn-secondary" onclick="exportReflections('${courseCode}', '${courseName}')">匯出文字檔</button>
-                        <button class="btn btn-secondary" onclick="document.getElementById('modal').classList.remove('active')" style="margin-left: 10px;">關閉</button>
-                    </div>
-                </div>
-            `;
-            
-            modal.classList.add('active');
-        }
+                </div>`;
+                modal.classList.add('active');
+            } catch (error) {
+                console.error('查看心得錯誤:', error);
+                alert('查看心得時發生錯誤：' + error.message);
+            }
+        };
         
-        // Export Reflections
-        async function exportReflections(courseCode, courseName) {
-            const refSnap = await getDocs(query(
-                collection(db, 'reflectionReports'),
-                where('courseCode', '==', courseCode),
-                where('isDraft', '==', false)
-            ));
-            
-            let content = `${courseCode} - ${courseName}\n學員心得報告彙整\n\n`;
-            content += `共 ${refSnap.size} 份心得報告\n`;
-            content += '='.repeat(60) + '\n\n';
-            
-            refSnap.forEach((d, index) => {
-                const r = d.data();
-                const submitDate = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
+        window.exportReflections = async function(courseCode, courseName) {
+            try {
+                const refSnap = await getDocs(query(
+                    collection(db, 'reflectionReports'),
+                    where('courseCode', '==', courseCode),
+                    where('isDraft', '==', false)
+                ));
                 
-                content += `【心得報告 ${index + 1}】\n`;
-                content += `學員姓名：${r.userName}\n`;
-                content += `提交時間：${submitDate}\n`;
-                content += `內容：\n${r.content || '（無內容）'}\n`;
-                content += '\n' + '-'.repeat(60) + '\n\n';
-            });
-            
-            // 下載為文字檔
-            const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `${courseCode}_心得報告_${new Date().toISOString().split('T')[0]}.txt`;
-            link.click();
-            
-            alert('已匯出心得報告！');
-        }
+                let content = `${courseCode} - ${courseName}\n學員心得報告彙整\n\n共 ${refSnap.size} 份心得報告\n${'='.repeat(60)}\n\n`;
+                
+                refSnap.forEach((d, i) => {
+                    const r = d.data();
+                    const date = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
+                    content += `【心得報告 ${i + 1}】\n學員姓名：${r.userName}\n提交時間：${date}\n內容：\n${r.content || '（無內容）'}\n\n${'-'.repeat(60)}\n\n`;
+                });
+                
+                const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${courseCode}_心得報告_${new Date().toISOString().split('T')[0]}.txt`;
+                link.click();
+                alert('已匯出心得報告！');
+            } catch (error) {
+                console.error('匯出心得錯誤:', error);
+                alert('匯出心得時發生錯誤：' + error.message);
+            }
+        };
 
         // Load Records Admin
         async function loadRecordsAdmin() {
