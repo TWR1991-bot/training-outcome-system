@@ -1838,8 +1838,16 @@
             const container = document.getElementById('subordinatesList');
             container.innerHTML = '<div class="loading">載入中...</div>';
             
+            // 確保 allUsers 已載入
+            if (!allUsers || allUsers.length === 0) {
+                const usersSnap = await getDocs(collection(db, 'users'));
+                allUsers = [];
+                usersSnap.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
+            }
+            
             const userDoc = await getDoc(doc(db, 'users', currentUser));
-            const subordinates = userDoc.data().subordinates || [];
+            const userData = userDoc.data();
+            const subordinates = userData.subordinates || [];
             
             if (subordinates.length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding:40px;">沒有部屬</div>';
@@ -1855,8 +1863,16 @@
             
             let html = '<table><thead><tr><th>姓名</th><th>課程數</th><th>總時數</th><th>證書數</th><th>滿意度</th><th>心得</th><th>評估平均</th></tr></thead><tbody>';
             
+            console.log('=== 部屬成果載入 ===');
+            console.log('當前主管ID:', currentUser);
+            console.log('主管姓名:', userData.name);
+            console.log('部屬ID列表:', subordinates);
+            console.log('部屬數量:', subordinates.length);
+            console.log('所有使用者數量:', allUsers.length);
+            
             subordinates.forEach(subId => {
                 const sub = allUsers.find(u => u.id === subId);
+                console.log('處理部屬ID:', subId, '→ 找到:', sub ? sub.name : '❌ 未找到');
                 if (!sub) return;
                 
                 let courses = 0, hours = 0, certs = 0, sat = 0, ref = 0, evalSum = 0, evalCount = 0;
@@ -1874,7 +1890,8 @@
                 refSnap.forEach(d => { const r = d.data(); if (r.userId === subId && !r.isDraft) ref++; });
                 evalSnap.forEach(d => {
                     const e = d.data();
-                    if (e.studentId === subId) {
+                    // 只統計當前主管評估的分數
+                    if (e.studentId === subId && e.managerId === currentUser) {
                         evalSum += e.totalScore;
                         evalCount++;
                     }
@@ -2932,12 +2949,12 @@
             refSnap.forEach(d => {
                 const data = d.data();
                 if (!data.isDraft) {
-                    if (!refSubmitted[data.courseCode]) refSubmitted[data.courseCode] = [];
-                    refSubmitted[data.courseCode].push(data.userName);
+                    if (!refSubmittedByName[data.courseCode]) refSubmittedByName[data.courseCode] = [];
+                    refSubmittedByName[data.courseCode].push(data.userName);
                 }
             });
             
-            let refHtml = '<table><thead><tr><th>課程</th><th>應填</th><th>已填</th><th>完成率</th><th>未填學員</th></tr></thead><tbody>';
+            let refHtml = '<table><thead><tr><th>課程</th><th>應填</th><th>已填</th><th>完成率</th><th>未填學員</th><th>操作</th></tr></thead><tbody>';
             
             // 使用已排序的課程列表
             coursesList.forEach(c => {
@@ -2961,6 +2978,9 @@
                     <td>${completed}</td>
                     <td>${rate}%</td>
                     <td style="color:${pending==='全部完成'?'var(--success)':'var(--danger)'};">${pending}</td>
+                    <td>
+                        ${completed > 0 ? `<button class="btn btn-primary" style="width:auto;padding:4px 8px;font-size:12px;" onclick="viewReflections('${c.code}')">查看內容</button>` : '-'}
+                    </td>
                 </tr>`;
             });
             refHtml += '</tbody></table>';
@@ -3020,6 +3040,100 @@
             
             evalHtml += '</tbody></table>';
             document.getElementById('progressEvaluation').innerHTML = evalHtml || '<div style="text-align:center; padding:20px;">目前沒有待評估項目</div>';
+        }
+        
+        // View Reflections
+        async function viewReflections(courseCode) {
+            const modal = document.getElementById('modal');
+            
+            // 獲取課程資訊
+            const coursesSnap = await getDocs(collection(db, 'courses'));
+            let courseName = '';
+            coursesSnap.forEach(d => {
+                const c = d.data();
+                if (c.code === courseCode) {
+                    courseName = c.name;
+                }
+            });
+            
+            // 獲取心得報告
+            const refSnap = await getDocs(query(
+                collection(db, 'reflectionReports'),
+                where('courseCode', '==', courseCode),
+                where('isDraft', '==', false)
+            ));
+            
+            let reflectionsHtml = '';
+            refSnap.forEach(d => {
+                const r = d.data();
+                const submitDate = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
+                
+                reflectionsHtml += `
+                    <div style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; background: var(--bg);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <strong style="font-size: 16px;">${r.userName}</strong>
+                            <span style="color: var(--text-secondary); font-size: 14px;">提交時間：${submitDate}</span>
+                        </div>
+                        <div style="white-space: pre-wrap; line-height: 1.6; color: var(--text);">
+                            ${r.content || '（無內容）'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (!reflectionsHtml) {
+                reflectionsHtml = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">目前沒有心得報告</p>';
+            }
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+                    <h2>${courseCode} - ${courseName}</h2>
+                    <h3 style="margin: 20px 0 16px 0; color: var(--primary);">學員心得報告</h3>
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        ${reflectionsHtml}
+                    </div>
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button class="btn btn-secondary" onclick="exportReflections('${courseCode}', '${courseName}')">匯出文字檔</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('modal').classList.remove('active')" style="margin-left: 10px;">關閉</button>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+        
+        // Export Reflections
+        async function exportReflections(courseCode, courseName) {
+            const refSnap = await getDocs(query(
+                collection(db, 'reflectionReports'),
+                where('courseCode', '==', courseCode),
+                where('isDraft', '==', false)
+            ));
+            
+            let content = `${courseCode} - ${courseName}\n學員心得報告彙整\n\n`;
+            content += `共 ${refSnap.size} 份心得報告\n`;
+            content += '='.repeat(60) + '\n\n';
+            
+            refSnap.forEach((d, index) => {
+                const r = d.data();
+                const submitDate = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
+                
+                content += `【心得報告 ${index + 1}】\n`;
+                content += `學員姓名：${r.userName}\n`;
+                content += `提交時間：${submitDate}\n`;
+                content += `內容：\n${r.content || '（無內容）'}\n`;
+                content += '\n' + '-'.repeat(60) + '\n\n';
+            });
+            
+            // 下載為文字檔
+            const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${courseCode}_心得報告_${new Date().toISOString().split('T')[0]}.txt`;
+            link.click();
+            
+            alert('已匯出心得報告！');
         }
 
         // Load Records Admin
