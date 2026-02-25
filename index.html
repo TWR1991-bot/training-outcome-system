@@ -3084,12 +3084,20 @@
                 refSnap.forEach(d => {
                     const r = d.data();
                     const date = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
+                    
+                    // 組合三個答案
+                    let content = '';
+                    if (r.answer1) content += `1. 從本課程學習到什麼？\n${r.answer1}\n\n`;
+                    if (r.answer2) content += `2. 課程可以如何改善？\n${r.answer2}\n\n`;
+                    if (r.answer3) content += `3. 其他建議\n${r.answer3}`;
+                    if (!content) content = '（無內容）';
+                    
                     html += `<div style="border:1px solid #ddd; padding:16px; margin:8px; border-radius:8px;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                             <strong>${r.userName}</strong>
                             <span style="color:#666; font-size:14px;">${date}</span>
                         </div>
-                        <div style="white-space:pre-wrap; line-height:1.6;">${r.content || '（無內容）'}</div>
+                        <div style="white-space:pre-wrap; line-height:1.6;">${content}</div>
                     </div>`;
                 });
                 
@@ -3125,7 +3133,14 @@
                 refSnap.forEach((d, i) => {
                     const r = d.data();
                     const date = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
-                    content += `【心得報告 ${i + 1}】\n學員姓名：${r.userName}\n提交時間：${date}\n內容：\n${r.content || '（無內容）'}\n\n${'-'.repeat(60)}\n\n`;
+                    
+                    let reflectionContent = '';
+                    if (r.answer1) reflectionContent += `1. 從本課程學習到什麼？\n${r.answer1}\n\n`;
+                    if (r.answer2) reflectionContent += `2. 課程可以如何改善？\n${r.answer2}\n\n`;
+                    if (r.answer3) reflectionContent += `3. 其他建議\n${r.answer3}`;
+                    if (!reflectionContent) reflectionContent = '（無內容）';
+                    
+                    content += `【心得報告 ${i + 1}】\n學員姓名：${r.userName}\n提交時間：${date}\n\n${reflectionContent}\n\n${'-'.repeat(60)}\n\n`;
                 });
                 
                 const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
