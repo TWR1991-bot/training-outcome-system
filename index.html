@@ -979,8 +979,8 @@
                         <div class="stat-label">已執行時數</div>
                     </div>
                     <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                        <div class="stat-value" id="stat-execution-rate">0%</div>
-                        <div class="stat-label">執行率</div>
+                        <div class="stat-value" id="stat-execution-progress">0%</div>
+                        <div class="stat-label">執行進度</div>
                     </div>
                     <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
                         <div class="stat-value" id="stat-internal-hours">0h</div>
@@ -2490,7 +2490,7 @@
             // 更新統計卡片
             document.getElementById('stat-total-hours').textContent = totalHours + 'h';
             document.getElementById('stat-completed-hours').textContent = completedHours + 'h';
-            document.getElementById('stat-execution-rate').textContent = executionRate + '%';
+            document.getElementById('stat-execution-progress').textContent = executionRate + '%';
             document.getElementById('stat-internal-hours').textContent = internalHours + 'h';
             document.getElementById('stat-external-hours').textContent = externalHours + 'h';
             
@@ -2542,6 +2542,40 @@
         }
 
         // Show Course Modal
+        // 新增上課日期欄位
+        window.addCourseSession = function(date = '', hours = '') {
+            const container = document.getElementById('course-sessions-container');
+            const sessionDiv = document.createElement('div');
+            sessionDiv.className = 'course-session';
+            sessionDiv.style.cssText = 'display:flex;gap:10px;margin-bottom:10px;align-items:center;';
+            sessionDiv.innerHTML = `
+                <div style="flex:1;">
+                    <input type="date" class="session-date form-input" value="${date}" style="margin:0;">
+                </div>
+                <div style="width:100px;">
+                    <input type="number" class="session-hours form-input" value="${hours}" placeholder="時數" min="0" step="0.5" onchange="updateTotalHours()" style="margin:0;">
+                </div>
+                <button type="button" class="btn btn-danger" onclick="this.closest('.course-session').remove();updateTotalHours();" style="width:auto;padding:6px 10px;">刪除</button>
+            `;
+            container.appendChild(sessionDiv);
+            updateTotalHours();
+        };
+        
+        // 計算並更新總時數
+        window.updateTotalHours = function() {
+            const hoursInputs = document.querySelectorAll('.session-hours');
+            let total = 0;
+            hoursInputs.forEach(input => {
+                const value = parseFloat(input.value) || 0;
+                total += value;
+            });
+            const totalInput = document.getElementById('course-total-hours');
+            // 只在總時數為空或為0時自動填入
+            if (totalInput && (!totalInput.value || parseFloat(totalInput.value) === 0)) {
+                totalInput.value = total;
+            }
+        };
+        
         function showCourseModal() {
             const modal = document.getElementById('modal');
             
@@ -2572,12 +2606,14 @@
                         <input type="text" id="course-teacher" class="form-input">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">課程時數</label>
-                        <input type="number" id="course-hours" class="form-input">
+                        <label class="form-label">課程總時數</label>
+                        <input type="number" id="course-total-hours" class="form-input" min="0" step="0.5">
+                        <small style="color:#666;font-size:12px;">可手動輸入總時數，或由下方各次時數自動計算</small>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">上課日期 (多天請用逗號分隔)</label>
-                        <input type="text" id="course-dates" class="form-input" placeholder="2026-02-10,2026-02-11">
+                        <label class="form-label">上課日期與時數</label>
+                        <div id="course-sessions-container"></div>
+                        <button type="button" class="btn btn-secondary" onclick="addCourseSession()" style="width:auto;padding:6px 12px;margin-top:8px;">➕ 新增上課日期</button>
                     </div>
                     <div class="form-group">
                         <label class="form-label">完訓日期</label>
@@ -2604,6 +2640,9 @@
             `;
             
             modal.classList.add('active');
+            
+            // 初始化一個空的上課日期欄位
+            setTimeout(() => addCourseSession(), 50);
             
             document.getElementById('saveCourseBtn').addEventListener('click', saveCourse);
         }
@@ -2641,12 +2680,14 @@
                         <input type="text" id="course-teacher" class="form-input" value="${course.teacher || ''}">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">課程時數</label>
-                        <input type="number" id="course-hours" class="form-input" value="${course.hours || 0}">
+                        <label class="form-label">課程總時數</label>
+                        <input type="number" id="course-total-hours" class="form-input" min="0" step="0.5">
+                        <small style="color:#666;font-size:12px;">可手動輸入總時數，或由下方各次時數自動計算</small>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">上課日期</label>
-                        <input type="text" id="course-dates" class="form-input" value="${course.dates ? course.dates.join(',') : ''}">
+                        <label class="form-label">上課日期與時數</label>
+                        <div id="course-sessions-container"></div>
+                        <button type="button" class="btn btn-secondary" onclick="addCourseSession()" style="width:auto;padding:6px 12px;margin-top:8px;">➕ 新增上課日期</button>
                     </div>
                     <div class="form-group">
                         <label class="form-label">完訓日期</label>
@@ -2674,6 +2715,16 @@
             
             modal.classList.add('active');
             
+            // 載入已有的上課日期和時數
+            setTimeout(() => {
+                const sessions = course.sessions || [];
+                if (sessions.length === 0) {
+                    addCourseSession();
+                } else {
+                    sessions.forEach(s => addCourseSession(s.date, s.hours));
+                }
+            }, 50);
+            
             document.getElementById('updateCourseBtn').addEventListener('click', () => updateCourse(courseId));
         }
 
@@ -2682,13 +2733,29 @@
             const code = document.getElementById('course-code').value;
             const name = document.getElementById('course-name').value;
             const teacher = document.getElementById('course-teacher').value;
-            const hours = parseInt(document.getElementById('course-hours').value) || 0;
-            const datesStr = document.getElementById('course-dates').value;
             const completion = document.getElementById('course-completion').value;
             const hasCert = document.getElementById('course-cert').checked;
             const type = document.getElementById('course-type').value || 'internal';
             
-            const dates = datesStr.split(',').map(d => d.trim()).filter(d => d);
+            // 收集所有上課日期和時數
+            const sessions = [];
+            document.querySelectorAll('.course-session').forEach(sessionDiv => {
+                const date = sessionDiv.querySelector('.session-date').value;
+                const hours = parseFloat(sessionDiv.querySelector('.session-hours').value) || 0;
+                if (date && hours > 0) {
+                    sessions.push({ date, hours });
+                }
+            });
+            
+            // 讀取總時數（使用者可能手動輸入）
+            const manualTotalHours = parseFloat(document.getElementById('course-total-hours').value) || 0;
+            const sessionsTotalHours = sessions.reduce((sum, s) => sum + s.hours, 0);
+            // 優先使用手動輸入的總時數，如果沒有則用各次加總
+            const totalHours = manualTotalHours > 0 ? manualTotalHours : sessionsTotalHours;
+            
+            // 所有日期（為相容性保留）
+            const dates = sessions.map(s => s.date);
+            
             const year = code.match(/HH(\d{3})/);
             const yearCode = year ? year[1] : '';
             
@@ -2700,7 +2767,10 @@
             if (!code || !name) return alert('請輸入課程編號和名稱');
             
             await addDoc(collection(db, 'courses'), {
-                code, name, teacher, hours, dates, 
+                code, name, teacher,
+                hours: totalHours,
+                sessions: sessions,
+                dates: dates,
                 completionDate: completion, 
                 hasCertificate: hasCert,
                 type: type,
@@ -2719,13 +2789,28 @@
             const code = document.getElementById('course-code').value;
             const name = document.getElementById('course-name').value;
             const teacher = document.getElementById('course-teacher').value;
-            const hours = parseInt(document.getElementById('course-hours').value) || 0;
-            const datesStr = document.getElementById('course-dates').value;
             const completion = document.getElementById('course-completion').value;
             const hasCert = document.getElementById('course-cert').checked;
             const type = document.getElementById('course-type').value || 'internal';
             
-            const dates = datesStr.split(',').map(d => d.trim()).filter(d => d);
+            // 收集所有上課日期和時數
+            const sessions = [];
+            document.querySelectorAll('.course-session').forEach(sessionDiv => {
+                const date = sessionDiv.querySelector('.session-date').value;
+                const hours = parseFloat(sessionDiv.querySelector('.session-hours').value) || 0;
+                if (date && hours > 0) {
+                    sessions.push({ date, hours });
+                }
+            });
+            
+            // 讀取總時數（使用者可能手動輸入）
+            const manualTotalHours = parseFloat(document.getElementById('course-total-hours').value) || 0;
+            const sessionsTotalHours = sessions.reduce((sum, s) => sum + s.hours, 0);
+            // 優先使用手動輸入的總時數，如果沒有則用各次加總
+            const totalHours = manualTotalHours > 0 ? manualTotalHours : sessionsTotalHours;
+            
+            // 所有日期
+            const dates = sessions.map(s => s.date);
             const year = code.match(/HH(\d{3})/);
             const yearCode = year ? year[1] : '';
             
@@ -2740,7 +2825,10 @@
             const attendedStudents = courseDoc.data().attendedStudents || [];
             
             await updateDoc(doc(db, 'courses', courseId), {
-                code, name, teacher, hours, dates, 
+                code, name, teacher,
+                hours: totalHours,
+                sessions: sessions,
+                dates: dates,
                 completionDate: completion, 
                 hasCertificate: hasCert,
                 type: type,
@@ -3109,7 +3197,7 @@
                     <h3 style="margin:20px 0 16px 0;">學員心得報告</h3>
                     <div style="max-height:500px; overflow-y:auto;">${html}</div>
                     <div style="margin-top:20px; text-align:right;">
-                        <button class="btn btn-secondary" onclick="window.exportReflections('${courseCode}','${courseName}')">匯出文字檔</button>
+                        <button class="btn btn-secondary" onclick="window.exportReflections('${courseCode}','${courseName}')">匯出PDF</button>
                         <button class="btn btn-secondary" onclick="document.getElementById('modal').classList.remove('active')" style="margin-left:10px;">關閉</button>
                     </div>
                 </div>`;
@@ -3128,27 +3216,91 @@
                     where('isDraft', '==', false)
                 ));
                 
-                let content = `${courseCode} - ${courseName}\n學員心得報告彙整\n\n共 ${refSnap.size} 份心得報告\n${'='.repeat(60)}\n\n`;
+                // 建立HTML內容
+                let htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>${courseCode} - ${courseName} 心得報告</title>
+                        <style>
+                            body { font-family: 'Microsoft JhengHei', Arial, sans-serif; margin: 40px; }
+                            h1 { text-align: center; color: #333; border-bottom: 3px solid #4CAF50; padding-bottom: 10px; }
+                            h2 { color: #666; font-size: 14px; text-align: center; margin-top: -10px; }
+                            .report { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; page-break-inside: avoid; }
+                            .report-header { display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+                            .student-name { font-size: 18px; font-weight: bold; color: #333; }
+                            .submit-date { color: #888; font-size: 14px; }
+                            .question { margin: 15px 0; }
+                            .question-title { font-weight: bold; color: #555; margin-bottom: 5px; }
+                            .answer { margin-left: 20px; line-height: 1.8; color: #333; white-space: pre-wrap; }
+                            @media print {
+                                body { margin: 20px; }
+                                .report { page-break-inside: avoid; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${courseCode} - ${courseName}</h1>
+                        <h2>學員心得報告彙整 (共 ${refSnap.size} 份)</h2>
+                `;
                 
                 refSnap.forEach((d, i) => {
                     const r = d.data();
                     const date = r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('zh-TW') : '未知';
                     
-                    let reflectionContent = '';
-                    if (r.answer1) reflectionContent += `1. 從本課程學習到什麼？\n${r.answer1}\n\n`;
-                    if (r.answer2) reflectionContent += `2. 課程可以如何改善？\n${r.answer2}\n\n`;
-                    if (r.answer3) reflectionContent += `3. 其他建議\n${r.answer3}`;
-                    if (!reflectionContent) reflectionContent = '（無內容）';
+                    htmlContent += `
+                        <div class="report">
+                            <div class="report-header">
+                                <span class="student-name">【心得報告 ${i + 1}】${r.userName}</span>
+                                <span class="submit-date">提交時間：${date}</span>
+                            </div>
+                    `;
                     
-                    content += `【心得報告 ${i + 1}】\n學員姓名：${r.userName}\n提交時間：${date}\n\n${reflectionContent}\n\n${'-'.repeat(60)}\n\n`;
+                    if (r.answer1) {
+                        htmlContent += `
+                            <div class="question">
+                                <div class="question-title">1. 從本課程學習到什麼？</div>
+                                <div class="answer">${r.answer1}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (r.answer2) {
+                        htmlContent += `
+                            <div class="question">
+                                <div class="question-title">2. 課程可以如何改善？</div>
+                                <div class="answer">${r.answer2}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (r.answer3) {
+                        htmlContent += `
+                            <div class="question">
+                                <div class="question-title">3. 其他建議</div>
+                                <div class="answer">${r.answer3}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    htmlContent += `</div>`;
                 });
                 
-                const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `${courseCode}_心得報告_${new Date().toISOString().split('T')[0]}.txt`;
-                link.click();
-                alert('已匯出心得報告！');
+                htmlContent += `
+                    </body>
+                    </html>
+                `;
+                
+                // 開啟新視窗並列印
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                printWindow.onload = function() {
+                    printWindow.print();
+                };
+                
+                alert('已開啟列印視窗，請選擇「另存為PDF」或直接列印');
             } catch (error) {
                 console.error('匯出心得錯誤:', error);
                 alert('匯出心得時發生錯誤：' + error.message);
