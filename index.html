@@ -786,9 +786,13 @@
                 <h3 style="margin-bottom: 16px;">👤 學員登入</h3>
                 <div class="form-group">
                     <label class="form-label">請選擇您的姓名</label>
-                    <select id="userSelect" class="form-select">
+                    <select id="userSelect" class="form-select" onchange="checkIfManager()">
                         <option value="">-- 請選擇 --</option>
                     </select>
+                </div>
+                <div class="form-group" id="user-password-group" style="display:none;">
+                    <label class="form-label">密碼</label>
+                    <input type="password" id="userPassword" class="form-input" placeholder="請輸入管理職密碼">
                 </div>
                 <button class="btn btn-primary" id="userLoginBtn">進入系統</button>
             </div>
@@ -1129,6 +1133,26 @@
             document.getElementById('exportBtn').addEventListener('click', exportRecords);
         }
 
+        // 檢查選擇的使用者是否為管理職
+        window.checkIfManager = function() {
+            const selectId = document.getElementById('userSelect').value;
+            const passwordGroup = document.getElementById('user-password-group');
+            
+            if (!selectId) {
+                passwordGroup.style.display = 'none';
+                document.getElementById('userPassword').value = '';
+                return;
+            }
+            
+            const user = allUsers.find(u => u.id === selectId);
+            if (user && user.isManager) {
+                passwordGroup.style.display = 'block';
+            } else {
+                passwordGroup.style.display = 'none';
+                document.getElementById('userPassword').value = '';
+            }
+        };
+        
         // Load Users
         async function loadUsers() {
             const snap = await getDocs(collection(db, 'users'));
@@ -1139,6 +1163,13 @@
             snap.forEach(docSnap => {
                 const user = { id: docSnap.id, ...docSnap.data() };
                 allUsers.push(user);
+                
+                // 過濾純講師：isStudent=false 且 isTeacher=true 的不顯示
+                const isPureTeacher = (user.isStudent === false && user.isTeacher === true);
+                if (isPureTeacher) {
+                    return; // 跳過純講師
+                }
+                
                 const opt = document.createElement('option');
                 opt.value = docSnap.id;
                 opt.textContent = user.name;
@@ -1159,7 +1190,8 @@
                 const isManager = option.getAttribute('data-is-manager') === 'true';
                 
                 if (isManager) {
-                    const pwd = prompt('請輸入密碼:');
+                    const pwd = document.getElementById('userPassword').value;
+                    if (!pwd) return alert('請輸入密碼');
                     if (pwd !== option.getAttribute('data-password')) return alert('密碼錯誤');
                 }
                 
@@ -2233,11 +2265,20 @@
             allUsers = [];
             snap.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
             
-            // 依職級排序 (L5 -> L1)
+            // 排序：學員在前，講師在後，再按職級遞減
+            const levelOrder = { 'L5': 5, 'L4': 4, 'L3': 3, 'L2': 2, 'L1': 1, '講師': 0 };
             allUsers.sort((a, b) => {
-                const levelA = parseInt(a.level.replace('L', ''));
-                const levelB = parseInt(b.level.replace('L', ''));
-                return levelB - levelA;
+                const aIsStudent = a.isStudent !== false;
+                const bIsStudent = b.isStudent !== false;
+                
+                // 第1層：學員優先
+                if (aIsStudent && !bIsStudent) return -1;
+                if (!aIsStudent && bIsStudent) return 1;
+                
+                // 第2層：按職級遞減排序 (L5 > L4 > L3 > L2 > L1 > 講師)
+                const aLevel = levelOrder[a.level] || 0;
+                const bLevel = levelOrder[b.level] || 0;
+                return bLevel - aLevel;  // 遞減
             });
             
             let html = '<table><thead><tr><th>姓名</th><th>職級</th><th>管理職</th><th>部屬數</th><th>操作</th></tr></thead><tbody>';
@@ -2273,6 +2314,48 @@
         }
 
         // Show User Modal
+        // 檢查資料庫資料
+        async function checkDatabaseData() {
+            console.log('='.repeat(60));
+            console.log('🔍 開始檢查資料庫');
+            console.log('='.repeat(60));
+            
+            // 檢查所有使用者
+            const snap = await getDocs(collection(db, 'users'));
+            
+            console.log('\n📊 所有使用者資料：');
+            console.log('-'.repeat(60));
+            
+            snap.forEach(d => {
+                const user = d.data();
+                console.log('\n姓名:', user.name);
+                console.log('  ID:', d.id);
+                console.log('  職級:', user.level);
+                console.log('  isStudent:', user.isStudent, '(型態:', typeof user.isStudent + ')');
+                console.log('  isTeacher:', user.isTeacher, '(型態:', typeof user.isTeacher + ')');
+                console.log('  isManager:', user.isManager, '(型態:', typeof user.isManager + ')');
+            });
+            
+            console.log('\n' + '='.repeat(60));
+            console.log('\n📋 allUsers 陣列資料：');
+            console.log('-'.repeat(60));
+            
+            allUsers.forEach(u => {
+                console.log('\n姓名:', u.name);
+                console.log('  ID:', u.id);
+                console.log('  職級:', u.level);
+                console.log('  isStudent:', u.isStudent, '(型態:', typeof u.isStudent + ')');
+                console.log('  isTeacher:', u.isTeacher, '(型態:', typeof u.isTeacher + ')');
+                console.log('  isManager:', u.isManager, '(型態:', typeof u.isManager + ')');
+            });
+            
+            console.log('\n' + '='.repeat(60));
+            console.log('✅ 檢查完成！請查看上方輸出');
+            console.log('='.repeat(60));
+            
+            alert('資料已輸出到 Console，請按 F12 查看');
+        }
+        
         function showUserModal() {
             const modal = document.getElementById('modal');
             
@@ -2297,13 +2380,25 @@
                     <div class="form-group">
                         <label class="form-label">職級</label>
                         <select id="user-level" class="form-select">
-                            <option>L1</option><option>L2</option><option>L3</option><option>L4</option><option>L5</option>
+                            <option>L1</option><option>L2</option><option>L3</option><option>L4</option><option>L5</option><option>講師</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">
-                            <input type="checkbox" id="user-isManager"> 管理職
-                        </label>
+                        <label class="form-label">角色</label>
+                        <div style="display:flex; gap:15px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="user-isStudent">
+                                <span>學員</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="user-isTeacher">
+                                <span>講師</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="user-isManager">
+                                <span>管理職</span>
+                            </label>
+                        </div>
                     </div>
                     <div class="form-group" id="pwd-group" style="display:none;">
                         <label class="form-label">密碼</label>
@@ -2330,6 +2425,17 @@
         // Edit User
         async function editUser(userId) {
             const user = allUsers.find(u => u.id === userId);
+            
+            // 除錯：顯示編輯的使用者資料
+            console.log('=== 編輯使用者 ===');
+            console.log('使用者ID:', userId);
+            console.log('使用者資料:', user);
+            console.log('isStudent 值:', user.isStudent);
+            console.log('isStudent 型態:', typeof user.isStudent);
+            console.log('isStudent === false?', user.isStudent === false);
+            console.log('isTeacher 值:', user.isTeacher);
+            console.log('isTeacher === true?', user.isTeacher === true);
+            
             const modal = document.getElementById('modal');
             
             let subHtml = '';
@@ -2361,12 +2467,25 @@
                             <option ${user.level==='L3'?'selected':''}>L3</option>
                             <option ${user.level==='L4'?'selected':''}>L4</option>
                             <option ${user.level==='L5'?'selected':''}>L5</option>
+                            <option ${user.level==='講師'?'selected':''}>講師</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">
-                            <input type="checkbox" id="user-isManager" ${user.isManager?'checked':''}> 管理職
-                        </label>
+                        <label class="form-label">角色</label>
+                        <div style="display:flex; gap:15px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="user-isStudent" ${user.isStudent === true ? 'checked' : ''}>
+                                <span>學員</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="user-isTeacher" ${user.isTeacher === true ? 'checked' : ''}>
+                                <span>講師</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="user-isManager" ${user.isManager === true ? 'checked' : ''}>
+                                <span>管理職</span>
+                            </label>
+                        </div>
                     </div>
                     <div class="form-group" style="display:${user.isManager?'block':'none'};" id="pwd-group">
                         <label class="form-label">密碼</label>
@@ -2394,6 +2513,8 @@
         async function saveUser() {
             const name = document.getElementById('user-name').value;
             const level = document.getElementById('user-level').value;
+            const isStudent = document.getElementById('user-isStudent').checked;
+            const isTeacher = document.getElementById('user-isTeacher').checked;
             const isManager = document.getElementById('user-isManager').checked;
             const password = isManager ? document.getElementById('user-password').value : '';
             
@@ -2407,9 +2528,33 @@
             if (!name) return alert('請輸入姓名');
             if (isManager && !password) return alert('請輸入密碼');
             
-            await addDoc(collection(db, 'users'), {
-                name, level, isManager, password, subordinates
+            // 除錯：顯示將要儲存的角色
+            console.log('儲存新使用者，角色狀態:', {
+                isStudent: isStudent,
+                isTeacher: isTeacher,
+                isManager: isManager
             });
+            
+            await addDoc(collection(db, 'users'), {
+                name, 
+                level, 
+                isStudent: isStudent,
+                isTeacher: isTeacher,
+                isManager: isManager, 
+                password, 
+                subordinates
+            });
+            
+            // 驗證儲存結果並強制重新載入 allUsers
+            const allUsersSnap = await getDocs(collection(db, 'users'));
+            allUsers = [];
+            allUsersSnap.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
+            
+            const savedUser = allUsersSnap.docs.find(d => d.data().name === name);
+            if (savedUser) {
+                console.log('已儲存的使用者資料:', savedUser.data());
+            }
+            console.log('重新載入後的 allUsers 數量:', allUsers.length);
             
             alert('新增成功');
             document.getElementById('modal').classList.remove('active');
@@ -2421,6 +2566,8 @@
         async function updateUser(userId) {
             const name = document.getElementById('user-name').value;
             const level = document.getElementById('user-level').value;
+            const isStudent = document.getElementById('user-isStudent').checked;
+            const isTeacher = document.getElementById('user-isTeacher').checked;
             const isManager = document.getElementById('user-isManager').checked;
             const password = isManager ? document.getElementById('user-password').value : '';
             
@@ -2434,9 +2581,32 @@
             if (!name) return alert('請輸入姓名');
             if (isManager && !password) return alert('請輸入密碼');
             
-            await updateDoc(doc(db, 'users', userId), {
-                name, level, isManager, password, subordinates
+            // 除錯：顯示將要更新的角色
+            console.log('角色狀態:', {
+                isStudent: isStudent,
+                isTeacher: isTeacher,
+                isManager: isManager
             });
+            
+            await updateDoc(doc(db, 'users', userId), {
+                name, 
+                level,
+                isStudent: isStudent,
+                isTeacher: isTeacher,
+                isManager: isManager,
+                password,
+                subordinates
+            });
+            
+            // 驗證更新結果
+            const updatedDoc = await getDoc(doc(db, 'users', userId));
+            console.log('更新後的使用者資料:', updatedDoc.data());
+            
+            // 強制重新載入 allUsers
+            const snap = await getDocs(collection(db, 'users'));
+            allUsers = [];
+            snap.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
+            console.log('重新載入後的 allUsers 數量:', allUsers.length);
             
             alert('更新成功');
             document.getElementById('modal').classList.remove('active');
@@ -2603,7 +2773,9 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">講師</label>
-                        <input type="text" id="course-teacher" class="form-input">
+                        <select id="course-teacher" class="form-select">
+                            <option value="">選擇講師</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">課程總時數</label>
@@ -2644,6 +2816,17 @@
             // 初始化一個空的上課日期欄位
             setTimeout(() => addCourseSession(), 50);
             
+            // 載入講師選項
+            const teacherSelect = document.getElementById('course-teacher');
+            allUsers.forEach(u => {
+                if (u.isTeacher) {
+                    const option = document.createElement('option');
+                    option.value = u.name;
+                    option.textContent = u.name;
+                    teacherSelect.appendChild(option);
+                }
+            });
+            
             document.getElementById('saveCourseBtn').addEventListener('click', saveCourse);
         }
 
@@ -2677,7 +2860,9 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">講師</label>
-                        <input type="text" id="course-teacher" class="form-input" value="${course.teacher || ''}">
+                        <select id="course-teacher" class="form-select">
+                            <option value="">選擇講師</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">課程總時數</label>
@@ -2724,6 +2909,18 @@
                     sessions.forEach(s => addCourseSession(s.date, s.hours));
                 }
             }, 50);
+            
+            // 載入講師選項並選中當前講師
+            const teacherSelect = document.getElementById('course-teacher');
+            allUsers.forEach(u => {
+                if (u.isTeacher) {
+                    const option = document.createElement('option');
+                    option.value = u.name;
+                    option.textContent = u.name;
+                    if (u.name === course.teacher) option.selected = true;
+                    teacherSelect.appendChild(option);
+                }
+            });
             
             document.getElementById('updateCourseBtn').addEventListener('click', () => updateCourse(courseId));
         }
@@ -3252,7 +3449,7 @@
                     htmlContent += `
                         <div class="report">
                             <div class="report-header">
-                                <span class="student-name">【心得報告 ${i + 1}】${r.userName}</span>
+                                <span class="student-name">【心得報告 ${i + 1}】${r.userName || '（姓名未知）'}</span>
                                 <span class="submit-date">提交時間：${date}</span>
                             </div>
                     `;
