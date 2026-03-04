@@ -1243,6 +1243,11 @@
                     document.getElementById('view-login').classList.add('hidden');
                     document.getElementById('view-admin').classList.remove('hidden');
                     await loadAdminDashboard();
+                } else if (acc === 'HerhsinTTQS' && pwd === '76380260') {
+                    currentRole = 'readonly';  // 唯讀管理員
+                    document.getElementById('view-login').classList.add('hidden');
+                    document.getElementById('view-admin').classList.remove('hidden');
+                    await loadAdminDashboard();
                 } else {
                     alert('帳號或密碼錯誤');
                 }
@@ -1469,7 +1474,7 @@
                 .filter(s => s.count > 0)
                 .map(s => ({
                     name: s.name,
-                    avgScore: Math.round(s.totalScore / s.count),
+                    avgScore: Math.round((s.totalScore / s.count) * 5),  // 換算成100分制
                     count: s.count
                 }))
                 .sort((a, b) => b.avgScore - a.avgScore);
@@ -2252,7 +2257,7 @@
                     const absent = s.assigned - s.attended;
                     
                     const avgScore = s.scoreCount > 0 
-                        ? Math.round(s.totalScore / s.scoreCount) 
+                        ? Math.round((s.totalScore / s.scoreCount) * 5)  // 換算成100分制
                         : '-';
                     
                     studentStatsHtml += `<tr>
@@ -2320,6 +2325,15 @@
             });
             html += '</tbody></table>';
             document.getElementById('usersContent').innerHTML = html;
+            
+            // 唯讀模式：隱藏編輯和刪除按鈕
+            if (currentRole === 'readonly') {
+                setTimeout(() => {
+                    document.querySelectorAll('[data-edit-user], [data-delete-user]').forEach(btn => {
+                        btn.style.display = 'none';
+                    });
+                }, 100);
+            }
             
             // Attach event listeners
             document.querySelectorAll('[data-edit-user]').forEach(btn => {
@@ -2741,6 +2755,15 @@
             html += '</tbody></table>';
             document.getElementById('coursesContent').innerHTML = html;
             
+            // 唯讀模式：隱藏編輯、刪除按鈕（保留規劃書）
+            if (currentRole === 'readonly') {
+                setTimeout(() => {
+                    document.querySelectorAll('[data-edit-course], [data-delete-course]').forEach(btn => {
+                        btn.style.display = 'none';
+                    });
+                }, 100);
+            }
+            
             // Attach event listeners
             document.querySelectorAll('[data-edit-course]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -2864,10 +2887,149 @@
                         <label class="form-label">費用備註</label>
                         <textarea id="course-cost-note" class="form-input" rows="3" placeholder="如：講師費 5000元、場地費 2000元等" style="resize:vertical;"></textarea>
                     </div>
+                    
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #eee;">
+                    
                     <div class="form-group">
                         <label class="form-label">指派學員</label>
                         <div id="students-list" class="checkbox-group">${studentsHtml}</div>
                     </div>
+                    
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #eee;">
+                    <h4 style="margin-bottom: 20px; color: #666;">📋 課程規劃書</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">職能項目</label>
+                        <input type="text" id="plan-competency" class="form-input" placeholder="如：管理與策略發展">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">訓練目標</label>
+                        <textarea id="plan-objective" class="form-input" rows="4" placeholder="請描述訓練目標" style="resize:vertical;"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">訓練對象</label>
+                        <input type="text" id="plan-audience" class="form-input" placeholder="如：中高階主管">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">師資條件</label>
+                        <textarea id="plan-instructor-req" class="form-input" rows="2" placeholder="如：須具備相關產業經驗" style="resize:vertical;"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">課程內容（大綱）</label>
+                        <textarea id="plan-outline" class="form-input" rows="6" placeholder="請列出課程大綱與各單元時數" style="resize:vertical;"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">環境與設備</label>
+                        <input type="text" id="plan-equipment" class="form-input" placeholder="如：投影機、電腦">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">教具</label>
+                        <input type="text" id="plan-tools" class="form-input" placeholder="如：白板、麥克風">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">教材</label>
+                        <input type="text" id="plan-materials" class="form-input" placeholder="如：講義、簡報">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">訓練方式</label>
+                        <div style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:10px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="method-lecture" value="講述法">
+                                <span>講述法</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="method-practice" value="演練法">
+                                <span>演練法</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="method-operation" value="實際操作">
+                                <span>實際操作</span>
+                            </label>
+                        </div>
+                        <input type="text" id="plan-method-other" class="form-input" placeholder="其他訓練方式">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">學習成果評估</label>
+                        <div style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:10px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l1" value="L1課後滿意度">
+                                <span>L1：課後滿意度</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l2-test" value="L2筆試測驗">
+                                <span>L2：筆試測驗</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l2-report" value="L2心得報告">
+                                <span>L2：心得報告</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l3-action" value="L3課後行動">
+                                <span>L3：課後行動</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l3-improve" value="L3改善提案">
+                                <span>L3：改善提案</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l3-cert" value="L3證照">
+                                <span>L3：證照</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l4" value="L4主管評核">
+                                <span>L4：主管評核</span>
+                            </label>
+                        </div>
+                        <input type="text" id="plan-eval-other" class="form-input" placeholder="其他評估方式">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">學習成果移轉機制</label>
+                        <textarea id="plan-transfer" class="form-input" rows="3" placeholder="如：完成公司報告書" style="resize:vertical;"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">管控方式</label>
+                        <div style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:10px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-pre" value="課前檢核表">
+                                <span>課前檢核表</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-post" value="課中後檢核表">
+                                <span>課中後檢核表</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-review" value="課程檢討表">
+                                <span>課程檢討表</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-overall" value="培訓整體管控表">
+                                <span>培訓整體管控表</span>
+                            </label>
+                        </div>
+                        <input type="text" id="plan-control-other" class="form-input" placeholder="其他管控方式">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">附件</label>
+                        <input type="text" id="plan-attachments" class="form-input" placeholder="附件說明">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">課程設計審查建議</label>
+                        <textarea id="plan-review" class="form-input" rows="3" style="resize:vertical;"></textarea>
+                    </div>
+                    
                     <button class="btn btn-success" id="saveCourseBtn">儲存</button>
                 </div>
             `;
@@ -3124,10 +3286,150 @@
                         <label class="form-label">費用備註</label>
                         <textarea id="course-cost-note" class="form-input" rows="3" style="resize:vertical;">${course.costNote || ''}</textarea>
                     </div>
+                    
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #eee;">
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #eee;">
+                    
                     <div class="form-group">
                         <label class="form-label">指派學員</label>
                         <div id="students-list" class="checkbox-group">${studentsHtml}</div>
                     </div>
+                    
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #eee;">
+                    <h4 style="margin-bottom: 20px; color: #666;">📋 課程規劃書</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">職能項目</label>
+                        <input type="text" id="plan-competency" class="form-input" value="${course.competency || ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">訓練目標</label>
+                        <textarea id="plan-objective" class="form-input" rows="4" style="resize:vertical;">${course.objective || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">訓練對象</label>
+                        <input type="text" id="plan-audience" class="form-input" value="${course.audience || ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">師資條件</label>
+                        <textarea id="plan-instructor-req" class="form-input" rows="2" style="resize:vertical;">${course.instructorReq || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">課程內容（大綱）</label>
+                        <textarea id="plan-outline" class="form-input" rows="6" style="resize:vertical;">${course.outline || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">環境與設備</label>
+                        <input type="text" id="plan-equipment" class="form-input" value="${course.equipment || ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">教具</label>
+                        <input type="text" id="plan-tools" class="form-input" value="${course.tools || ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">教材</label>
+                        <input type="text" id="plan-materials" class="form-input" value="${course.materials || ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">訓練方式</label>
+                        <div style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:10px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="method-lecture" value="講述法" ${course.methodLecture?'checked':''}>
+                                <span>講述法</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="method-practice" value="演練法" ${course.methodPractice?'checked':''}>
+                                <span>演練法</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="method-operation" value="實際操作" ${course.methodOperation?'checked':''}>
+                                <span>實際操作</span>
+                            </label>
+                        </div>
+                        <input type="text" id="plan-method-other" class="form-input" value="${course.methodOther || ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">學習成果評估</label>
+                        <div style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:10px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l1" ${course.evalL1?'checked':''}>
+                                <span>L1：課後滿意度</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l2-test" ${course.evalL2Test?'checked':''}>
+                                <span>L2：筆試測驗</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l2-report" ${course.evalL2Report?'checked':''}>
+                                <span>L2：心得報告</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l3-action" ${course.evalL3Action?'checked':''}>
+                                <span>L3：課後行動</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l3-improve" ${course.evalL3Improve?'checked':''}>
+                                <span>L3：改善提案</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l3-cert" ${course.evalL3Cert?'checked':''}>
+                                <span>L3：證照</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="eval-l4" ${course.evalL4?'checked':''}>
+                                <span>L4：主管評核</span>
+                            </label>
+                        </div>
+                        <input type="text" id="plan-eval-other" class="form-input" value="${course.evalOther || ''}" placeholder="其他評估方式">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">學習成果移轉機制</label>
+                        <textarea id="plan-transfer" class="form-input" rows="3" style="resize:vertical;">${course.transfer || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">管控方式</label>
+                        <div style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:10px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-pre" ${course.controlPre?'checked':''}>
+                                <span>課前檢核表</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-post" ${course.controlPost?'checked':''}>
+                                <span>課中後檢核表</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-review" ${course.controlReview?'checked':''}>
+                                <span>課程檢討表</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="control-overall" ${course.controlOverall?'checked':''}>
+                                <span>培訓整體管控表</span>
+                            </label>
+                        </div>
+                        <input type="text" id="plan-control-other" class="form-input" value="${course.controlOther || ''}" placeholder="其他管控方式">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">附件</label>
+                        <input type="text" id="plan-attachments" class="form-input" value="${course.attachments || ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">課程設計審查建議</label>
+                        <textarea id="plan-review" class="form-input" rows="3" style="resize:vertical;">${course.review || ''}</textarea>
+                    </div>
+                    
                     <button class="btn btn-success" id="updateCourseBtn">更新</button>
                 </div>
             `;
@@ -3169,6 +3471,36 @@
             const type = document.getElementById('course-type').value || 'internal';
             const cost = parseFloat(document.getElementById('course-cost').value) || 0;
             const costNote = document.getElementById('course-cost-note').value || '';
+            
+            // 讀取規劃書欄位
+            const competency = document.getElementById('plan-competency').value || '';
+            const objective = document.getElementById('plan-objective').value || '';
+            const audience = document.getElementById('plan-audience').value || '';
+            const instructorReq = document.getElementById('plan-instructor-req').value || '';
+            const outline = document.getElementById('plan-outline').value || '';
+            const equipment = document.getElementById('plan-equipment').value || '';
+            const tools = document.getElementById('plan-tools').value || '';
+            const materials = document.getElementById('plan-materials').value || '';
+            const methodLecture = document.getElementById('method-lecture').checked;
+            const methodPractice = document.getElementById('method-practice').checked;
+            const methodOperation = document.getElementById('method-operation').checked;
+            const methodOther = document.getElementById('plan-method-other').value || '';
+            const evalL1 = document.getElementById('eval-l1').checked;
+            const evalL2Test = document.getElementById('eval-l2-test').checked;
+            const evalL2Report = document.getElementById('eval-l2-report').checked;
+            const evalL3Action = document.getElementById('eval-l3-action').checked;
+            const evalL3Improve = document.getElementById('eval-l3-improve').checked;
+            const evalL3Cert = document.getElementById('eval-l3-cert').checked;
+            const evalL4 = document.getElementById('eval-l4').checked;
+            const transfer = document.getElementById('plan-transfer').value || '';
+            const controlPre = document.getElementById('control-pre').checked;
+            const controlPost = document.getElementById('control-post').checked;
+            const controlReview = document.getElementById('control-review').checked;
+            const controlOverall = document.getElementById('control-overall').checked;
+            const attachments = document.getElementById('plan-attachments').value || '';
+            const review = document.getElementById('plan-review').value || '';
+            const reviewer = document.getElementById('plan-reviewer').value || '';
+            const creator = document.getElementById('plan-creator').value || '';
             
             // 收集所有上課日期和時數
             const sessions = [];
@@ -3229,6 +3561,36 @@
             const type = document.getElementById('course-type').value || 'internal';
             const cost = parseFloat(document.getElementById('course-cost').value) || 0;
             const costNote = document.getElementById('course-cost-note').value || '';
+            
+            // 讀取規劃書欄位
+            const competency = document.getElementById('plan-competency').value || '';
+            const objective = document.getElementById('plan-objective').value || '';
+            const audience = document.getElementById('plan-audience').value || '';
+            const instructorReq = document.getElementById('plan-instructor-req').value || '';
+            const outline = document.getElementById('plan-outline').value || '';
+            const equipment = document.getElementById('plan-equipment').value || '';
+            const tools = document.getElementById('plan-tools').value || '';
+            const materials = document.getElementById('plan-materials').value || '';
+            const methodLecture = document.getElementById('method-lecture').checked;
+            const methodPractice = document.getElementById('method-practice').checked;
+            const methodOperation = document.getElementById('method-operation').checked;
+            const methodOther = document.getElementById('plan-method-other').value || '';
+            const evalL1 = document.getElementById('eval-l1').checked;
+            const evalL2Test = document.getElementById('eval-l2-test').checked;
+            const evalL2Report = document.getElementById('eval-l2-report').checked;
+            const evalL3Action = document.getElementById('eval-l3-action').checked;
+            const evalL3Improve = document.getElementById('eval-l3-improve').checked;
+            const evalL3Cert = document.getElementById('eval-l3-cert').checked;
+            const evalL4 = document.getElementById('eval-l4').checked;
+            const transfer = document.getElementById('plan-transfer').value || '';
+            const controlPre = document.getElementById('control-pre').checked;
+            const controlPost = document.getElementById('control-post').checked;
+            const controlReview = document.getElementById('control-review').checked;
+            const controlOverall = document.getElementById('control-overall').checked;
+            const attachments = document.getElementById('plan-attachments').value || '';
+            const review = document.getElementById('plan-review').value || '';
+            const reviewer = document.getElementById('plan-reviewer').value || '';
+            const creator = document.getElementById('plan-creator').value || '';
             
             // 收集所有上課日期和時數
             const sessions = [];
@@ -3769,7 +4131,8 @@
                     let avgEval = '-';
                     if (evals.length > 0) {
                         const sum = evals.reduce((acc, ed) => acc + ed.data().totalScore, 0);
-                        avgEval = (sum / evals.length).toFixed(1);
+                        const avg20 = sum / evals.length;  // 20分制平均
+                        avgEval = (avg20 * 5).toFixed(1);  // 換算成100分制
                     }
                     
                     html += `<tr data-year="${c.year}">
