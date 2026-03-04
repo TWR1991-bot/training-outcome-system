@@ -2733,6 +2733,7 @@
                     <td>${c.assignedStudents ? c.assignedStudents.length : 0}</td>
                     <td>
                         <button class="btn btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" data-edit-course="${c.id}">編輯</button>
+                        <button class="btn btn-secondary" style="width:auto; padding:6px 12px; font-size:12px;" data-view-plan="${c.id}">規劃書</button>
                         <button class="btn" style="width:auto; padding:6px 12px; font-size:12px; background:var(--danger); color:white;" data-delete-course="${c.id}">刪除</button>
                     </td>
                 </tr>`;
@@ -2745,6 +2746,13 @@
                 btn.addEventListener('click', (e) => {
                     const courseId = e.target.getAttribute('data-edit-course');
                     editCourse(courseId);
+                });
+            });
+            
+            document.querySelectorAll('[data-view-plan]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const courseId = e.target.getAttribute('data-view-plan');
+                    viewCoursePlan(courseId);
                 });
             });
             
@@ -2824,7 +2832,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">課程總時數</label>
-                        <input type="number" id="course-total-hours" class="form-input" min="0" step="0.5">
+                        <input type="number" id="course-total-hours" class="form-input" value="${course.hours || 0}" min="0" step="0.5">
                         <small style="color:#666;font-size:12px;">可手動輸入總時數，或由下方各次時數自動計算</small>
                     </div>
                     <div class="form-group">
@@ -2883,6 +2891,171 @@
             document.getElementById('saveCourseBtn').addEventListener('click', saveCourse);
         }
 
+        // 查看課程規劃書
+        window.viewCoursePlan = function(courseId) {
+            const course = allCourses.find(c => c.id === courseId);
+            if (!course) return;
+            
+            // 建立規劃書HTML
+            const planHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>課程規劃書 - ${course.code}</title>
+    <style>
+        body { 
+            font-family: 'Microsoft JhengHei', Arial, sans-serif; 
+            margin: 40px;
+            line-height: 1.8;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .company-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .doc-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            text-align: left;
+        }
+        .field-label {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            width: 20%;
+        }
+        .signature-section {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #000;
+        }
+        @media print {
+            body { margin: 20px; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-name">何鑫實業股份有限公司</div>
+        <div class="doc-title">課程規劃書</div>
+    </div>
+    
+    <table>
+        <tr>
+            <th class="field-label">課程編號</th>
+            <td>${course.code || ''}</td>
+            <th class="field-label">職能項目</th>
+            <td colspan="2">${course.competency || '管理與策略發展'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">課程名稱</th>
+            <td>${course.name || ''}</td>
+            <th class="field-label">課程時數</th>
+            <td colspan="2">${course.hours || 0}h</td>
+        </tr>
+        <tr>
+            <th class="field-label">訓練目標</th>
+            <td colspan="4" style="white-space: pre-wrap;">${course.objective || '（待填寫）'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">訓練對象</th>
+            <td colspan="4">${course.audience || '（待填寫）'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">師資條件</th>
+            <td colspan="4">${course.instructorReq || '（待填寫）'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">課程內容</th>
+            <td colspan="4" style="white-space: pre-wrap;">${course.outline || '課程大綱\n\n（待填寫）'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">環境與設備</th>
+            <td colspan="4">${course.equipment || '投影機、電腦'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">教具</th>
+            <td colspan="4">${course.tools || '（待填寫）'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">教材</th>
+            <td colspan="4">${course.materials || '（待填寫）'}</td>
+        </tr>
+    </table>
+    
+    <table>
+        <tr>
+            <th class="field-label">訓練方式</th>
+            <td colspan="4">${course.trainingMethod || '▓講述法、□演練法、▓實際操作、□其他'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">學習成果評估</th>
+            <td colspan="4" style="white-space: pre-wrap;">${course.learningEval || 'L1：▓課後滿意度\nL2：□筆試測驗、□心得報告\nL3：▓課後行動、□改善提案、□證照\nL4：□主管訓後成效評核'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">學習成果移轉機制</th>
+            <td colspan="4">${course.transfer || '（待填寫）'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">管控方式</th>
+            <td colspan="4">${course.controlMethod || '□課前檢核表、□課中後檢核表、□課程檢討表、□培訓整體管控表'}</td>
+        </tr>
+        <tr>
+            <th class="field-label">附件</th>
+            <td colspan="4">${course.attachments || ''}</td>
+        </tr>
+    </table>
+    
+    <div class="signature-section">
+        <div style="margin-bottom: 20px;">
+            <strong>課程設計審查建議：</strong><br><br>
+            ${course.review || ''}
+            <br><br><br>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+            <div>審查人員：${course.reviewer || '________________'}</div>
+            <div>審查日期：________________</div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+        <div>填表人：${course.creator || '________________'}</div>
+        <div>管理部</div>
+    </div>
+    
+    <div class="no-print" style="text-align: center; margin-top: 30px;">
+        <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">列印 / 另存為PDF</button>
+        <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">關閉</button>
+    </div>
+</body>
+</html>
+            `;
+            
+            // 開啟新視窗顯示規劃書
+            const planWindow = window.open('', '_blank');
+            planWindow.document.write(planHTML);
+            planWindow.document.close();
+        };
+        
         // Edit Course
         async function editCourse(courseId) {
             const course = allCourses.find(c => c.id === courseId);
@@ -2919,7 +3092,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">課程總時數</label>
-                        <input type="number" id="course-total-hours" class="form-input" min="0" step="0.5">
+                        <input type="number" id="course-total-hours" class="form-input" value="${course.hours || 0}" min="0" step="0.5">
                         <small style="color:#666;font-size:12px;">可手動輸入總時數，或由下方各次時數自動計算</small>
                     </div>
                     <div class="form-group">
