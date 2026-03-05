@@ -1004,11 +1004,11 @@
                     </div>
                     <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                         <div class="stat-value" id="stat-spent-budget">$0</div>
-                        <div class="stat-label">已支出費用</div>
+                        <div class="stat-label">政府補助費用</div>
                     </div>
                     <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                         <div class="stat-value" id="stat-budget-ratio">0%</div>
-                        <div class="stat-label">支出占比</div>
+                        <div class="stat-label">公司支出占比</div>
                     </div>
                     <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
                         <div class="stat-value" id="stat-internal-cost">$0</div>
@@ -1978,7 +1978,7 @@
                     }
                 });
                 
-                const avgEval = evalCount > 0 ? (evalSum / evalCount).toFixed(1) : '-';
+                const avgEval = evalCount > 0 ? ((evalSum / evalCount) * 5).toFixed(1) : '-';  // 換算成100分制
                 
                 html += `<tr>
                     <td>${sub.name}</td>
@@ -2106,7 +2106,7 @@
                     evalCount++;
                 }
             });
-            const evalAvg = evalCount > 0 ? Math.round(evalTotal / evalCount) : 0;
+            const evalAvg = evalCount > 0 ? Math.round((evalTotal / evalCount) * 5) : 0;  // 換算成100分制
             document.getElementById('stat-result-avg').textContent = evalAvg;
             
             // Recent courses - 按課程編號排序（遞增）
@@ -2155,7 +2155,7 @@
                         evalCountCourse++;
                     }
                 });
-                const evalScore = evalCountCourse > 0 ? Math.round(evalTotalCourse / evalCountCourse) : '-';
+                const evalScore = evalCountCourse > 0 ? Math.round((evalTotalCourse / evalCountCourse) * 5) : '-';  // 換算成100分制
                 
                 html += `<tr>
                     <td>${c.code}</td>
@@ -2223,20 +2223,22 @@
                 }
             });
             
-            // 計算平均出席率（該年度）
-            let totalAttendanceRate = 0;
-            let studentCount = 0;
+            // 計算平均出席率（該年度）- 改為課程出席率的平均
+            let totalCourseAttendanceRate = 0;
+            let courseCount = 0;
             
-            Object.values(studentData).forEach(s => {
-                if (s.assigned > 0) {
-                    const rate = (s.attended / s.assigned) * 100;
-                    totalAttendanceRate += rate;
-                    studentCount++;
+            yearCourses.forEach(c => {
+                const assigned = c.assignedStudents ? c.assignedStudents.length : 0;
+                const attended = c.attendedStudents ? c.attendedStudents.length : 0;
+                if (assigned > 0) {
+                    const rate = (attended / assigned) * 100;
+                    totalCourseAttendanceRate += rate;
+                    courseCount++;
                 }
             });
             
-            const avgAttendanceRate = studentCount > 0 
-                ? Math.round(totalAttendanceRate / studentCount) 
+            const avgAttendanceRate = courseCount > 0 
+                ? Math.round(totalCourseAttendanceRate / courseCount) 
                 : 0;
             document.getElementById('stat-attendance-avg').textContent = avgAttendanceRate + '%';
             
@@ -2672,7 +2674,7 @@
             let internalHours = 0;
             let externalHours = 0;
             let totalBudget = 0;
-            let spentBudget = 0;
+            let totalSubsidy = 0;  // 政府補助總額
             let internalCost = 0;
             let externalCost = 0;
             
@@ -2682,13 +2684,14 @@
                 
                 const hours = course.hours || 0;
                 const cost = course.cost || 0;
+                const subsidy = course.subsidy || 0;
                 totalHours += hours;
                 totalBudget += cost;
+                totalSubsidy += subsidy;  // 累加政府補助
                 
                 // 已完訓課程
                 if (course.completionDate) {
                     completedHours += hours;
-                    spentBudget += cost;
                 }
                 
                 // 內訓/外訓
@@ -2704,8 +2707,9 @@
             // 計算執行率
             const executionRate = totalHours > 0 ? Math.round((completedHours / totalHours) * 100) : 0;
             
-            // 計算費用占比
-            const budgetRatio = totalBudget > 0 ? Math.round((spentBudget / totalBudget) * 100) : 0;
+            // 計算公司支出占比 = (總經費 - 政府補助) / 總經費
+            const companyExpense = totalBudget - totalSubsidy;  // 公司實際支出
+            const companyRatio = totalBudget > 0 ? Math.round((companyExpense / totalBudget) * 100) : 0;
             
             // 更新時數統計卡片
             document.getElementById('stat-total-hours').textContent = totalHours + 'h';
@@ -2716,8 +2720,8 @@
             
             // 更新費用統計卡片
             document.getElementById('stat-total-budget').textContent = '$' + totalBudget.toLocaleString();
-            document.getElementById('stat-spent-budget').textContent = '$' + spentBudget.toLocaleString();
-            document.getElementById('stat-budget-ratio').textContent = budgetRatio + '%';
+            document.getElementById('stat-spent-budget').textContent = '$' + totalSubsidy.toLocaleString();  // 顯示政府補助總額
+            document.getElementById('stat-budget-ratio').textContent = companyRatio + '%';  // 顯示公司支出占比
             document.getElementById('stat-internal-cost').textContent = '$' + internalCost.toLocaleString();
             document.getElementById('stat-external-cost').textContent = '$' + externalCost.toLocaleString();
             
@@ -2886,6 +2890,10 @@
                     <div class="form-group">
                         <label class="form-label">費用備註</label>
                         <textarea id="course-cost-note" class="form-input" rows="3" placeholder="如：講師費 5000元、場地費 2000元等" style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">政府補助費用（元）</label>
+                        <input type="number" id="course-subsidy" class="form-input" placeholder="政府補助金額" min="0" step="1">
                     </div>
                     
                     <hr style="margin: 30px 0; border: none; border-top: 2px solid #eee;">
@@ -3058,6 +3066,53 @@
             const course = allCourses.find(c => c.id === courseId);
             if (!course) return;
             
+            // 格式化訓練方式
+            const methods = [];
+            if (course.methodLecture) methods.push('▓講述法');
+            else methods.push('□講述法');
+            if (course.methodPractice) methods.push('▓演練法');
+            else methods.push('□演練法');
+            if (course.methodOperation) methods.push('▓實際操作');
+            else methods.push('□實際操作');
+            if (course.methodOther) methods.push('▓其他：' + course.methodOther);
+            else methods.push('□其他');
+            const trainingMethod = methods.join('、');
+            
+            // 格式化學習成果評估
+            const evals = [];
+            evals.push('L1：' + (course.evalL1 ? '▓' : '□') + '課後滿意度');
+            const l2Items = [];
+            if (course.evalL2Test) l2Items.push('▓筆試測驗');
+            else l2Items.push('□筆試測驗');
+            if (course.evalL2Report) l2Items.push('▓心得報告');
+            else l2Items.push('□心得報告');
+            evals.push('L2：' + l2Items.join('、'));
+            const l3Items = [];
+            if (course.evalL3Action) l3Items.push('▓課後行動');
+            else l3Items.push('□課後行動');
+            if (course.evalL3Improve) l3Items.push('▓改善提案');
+            else l3Items.push('□改善提案');
+            if (course.evalL3Cert) l3Items.push('▓證照');
+            else l3Items.push('□證照');
+            evals.push('L3：' + l3Items.join('、'));
+            evals.push('L4：' + (course.evalL4 ? '▓' : '□') + '主管訓後成效評核');
+            if (course.evalOther) evals.push('其他：' + course.evalOther);
+            const learningEval = evals.join('\n');
+            
+            // 格式化管控方式
+            const controls = [];
+            if (course.controlPre) controls.push('▓課前檢核表');
+            else controls.push('□課前檢核表');
+            if (course.controlPost) controls.push('▓課中後檢核表');
+            else controls.push('□課中後檢核表');
+            if (course.controlReview) controls.push('▓課程檢討表');
+            else controls.push('□課程檢討表');
+            if (course.controlOverall) controls.push('▓培訓整體管控表');
+            else controls.push('□培訓整體管控表');
+            if (course.controlOther) controls.push('▓其他：' + course.controlOther);
+            else controls.push('□其他');
+            const controlMethod = controls.join('、');
+            
             // 建立規劃書HTML
             const planHTML = `
 <!DOCTYPE html>
@@ -3167,11 +3222,11 @@
     <table>
         <tr>
             <th class="field-label">訓練方式</th>
-            <td colspan="4">${course.trainingMethod || '▓講述法、□演練法、▓實際操作、□其他'}</td>
+            <td colspan="4">${trainingMethod}</td>
         </tr>
         <tr>
             <th class="field-label">學習成果評估</th>
-            <td colspan="4" style="white-space: pre-wrap;">${course.learningEval || 'L1：▓課後滿意度\nL2：□筆試測驗、□心得報告\nL3：▓課後行動、□改善提案、□證照\nL4：□主管訓後成效評核'}</td>
+            <td colspan="4" style="white-space: pre-wrap;">${learningEval}</td>
         </tr>
         <tr>
             <th class="field-label">學習成果移轉機制</th>
@@ -3179,7 +3234,7 @@
         </tr>
         <tr>
             <th class="field-label">管控方式</th>
-            <td colspan="4">${course.controlMethod || '□課前檢核表、□課中後檢核表、□課程檢討表、□培訓整體管控表'}</td>
+            <td colspan="4">${controlMethod}</td>
         </tr>
         <tr>
             <th class="field-label">附件</th>
@@ -3194,13 +3249,13 @@
             <br><br><br>
         </div>
         <div style="display: flex; justify-content: space-between;">
-            <div>審查人員：${course.reviewer || '________________'}</div>
+            <div>審查人員：${'________________'}</div>
             <div>審查日期：________________</div>
         </div>
     </div>
     
     <div style="margin-top: 20px; display: flex; justify-content: space-between;">
-        <div>填表人：${course.creator || '________________'}</div>
+        <div>填表人：${'________________'}</div>
         <div>管理部</div>
     </div>
     
@@ -3285,6 +3340,10 @@
                     <div class="form-group">
                         <label class="form-label">費用備註</label>
                         <textarea id="course-cost-note" class="form-input" rows="3" style="resize:vertical;">${course.costNote || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">政府補助費用（元）</label>
+                        <input type="number" id="course-subsidy" class="form-input" value="${course.subsidy || 0}" min="0" step="1">
                     </div>
                     
                     <hr style="margin: 30px 0; border: none; border-top: 2px solid #eee;">
@@ -3471,6 +3530,7 @@
             const type = document.getElementById('course-type').value || 'internal';
             const cost = parseFloat(document.getElementById('course-cost').value) || 0;
             const costNote = document.getElementById('course-cost-note').value || '';
+            const subsidy = parseFloat(document.getElementById('course-subsidy').value) || 0;
             
             // 讀取規劃書欄位
             const competency = document.getElementById('plan-competency').value || '';
@@ -3492,15 +3552,15 @@
             const evalL3Improve = document.getElementById('eval-l3-improve').checked;
             const evalL3Cert = document.getElementById('eval-l3-cert').checked;
             const evalL4 = document.getElementById('eval-l4').checked;
+            const evalOther = document.getElementById('plan-eval-other').value || '';
             const transfer = document.getElementById('plan-transfer').value || '';
             const controlPre = document.getElementById('control-pre').checked;
             const controlPost = document.getElementById('control-post').checked;
             const controlReview = document.getElementById('control-review').checked;
             const controlOverall = document.getElementById('control-overall').checked;
+            const controlOther = document.getElementById('plan-control-other').value || '';
             const attachments = document.getElementById('plan-attachments').value || '';
             const review = document.getElementById('plan-review').value || '';
-            const reviewer = document.getElementById('plan-reviewer').value || '';
-            const creator = document.getElementById('plan-creator').value || '';
             
             // 收集所有上課日期和時數
             const sessions = [];
@@ -3541,9 +3601,39 @@
                 type: type,
                 cost: cost,
                 costNote: costNote,
+                subsidy: subsidy,
                 year: yearCode, 
                 assignedStudents,
-                attendedStudents: []
+                attendedStudents: [],
+                // 規劃書欄位
+                competency: competency,
+                objective: objective,
+                audience: audience,
+                instructorReq: instructorReq,
+                outline: outline,
+                equipment: equipment,
+                tools: tools,
+                materials: materials,
+                methodLecture: methodLecture,
+                methodPractice: methodPractice,
+                methodOperation: methodOperation,
+                methodOther: methodOther,
+                evalL1: evalL1,
+                evalL2Test: evalL2Test,
+                evalL2Report: evalL2Report,
+                evalL3Action: evalL3Action,
+                evalL3Improve: evalL3Improve,
+                evalL3Cert: evalL3Cert,
+                evalL4: evalL4,
+                evalOther: evalOther,
+                transfer: transfer,
+                controlPre: controlPre,
+                controlPost: controlPost,
+                controlReview: controlReview,
+                controlOverall: controlOverall,
+                controlOther: controlOther,
+                attachments: attachments,
+                review: review
             });
             
             alert('新增成功');
@@ -3561,6 +3651,7 @@
             const type = document.getElementById('course-type').value || 'internal';
             const cost = parseFloat(document.getElementById('course-cost').value) || 0;
             const costNote = document.getElementById('course-cost-note').value || '';
+            const subsidy = parseFloat(document.getElementById('course-subsidy').value) || 0;
             
             // 讀取規劃書欄位
             const competency = document.getElementById('plan-competency').value || '';
@@ -3582,15 +3673,15 @@
             const evalL3Improve = document.getElementById('eval-l3-improve').checked;
             const evalL3Cert = document.getElementById('eval-l3-cert').checked;
             const evalL4 = document.getElementById('eval-l4').checked;
+            const evalOther = document.getElementById('plan-eval-other').value || '';
             const transfer = document.getElementById('plan-transfer').value || '';
             const controlPre = document.getElementById('control-pre').checked;
             const controlPost = document.getElementById('control-post').checked;
             const controlReview = document.getElementById('control-review').checked;
             const controlOverall = document.getElementById('control-overall').checked;
+            const controlOther = document.getElementById('plan-control-other').value || '';
             const attachments = document.getElementById('plan-attachments').value || '';
             const review = document.getElementById('plan-review').value || '';
-            const reviewer = document.getElementById('plan-reviewer').value || '';
-            const creator = document.getElementById('plan-creator').value || '';
             
             // 收集所有上課日期和時數
             const sessions = [];
@@ -3633,9 +3724,39 @@
                 type: type,
                 cost: cost,
                 costNote: costNote,
+                subsidy: subsidy,
                 year: yearCode, 
                 assignedStudents,
-                attendedStudents
+                attendedStudents,
+                // 規劃書欄位
+                competency: competency,
+                objective: objective,
+                audience: audience,
+                instructorReq: instructorReq,
+                outline: outline,
+                equipment: equipment,
+                tools: tools,
+                materials: materials,
+                methodLecture: methodLecture,
+                methodPractice: methodPractice,
+                methodOperation: methodOperation,
+                methodOther: methodOther,
+                evalL1: evalL1,
+                evalL2Test: evalL2Test,
+                evalL2Report: evalL2Report,
+                evalL3Action: evalL3Action,
+                evalL3Improve: evalL3Improve,
+                evalL3Cert: evalL3Cert,
+                evalL4: evalL4,
+                evalOther: evalOther,
+                transfer: transfer,
+                controlPre: controlPre,
+                controlPost: controlPost,
+                controlReview: controlReview,
+                controlOverall: controlOverall,
+                controlOther: controlOther,
+                attachments: attachments,
+                review: review
             });
             
             alert('更新成功');
