@@ -913,7 +913,7 @@
                         <div class="stat-label">成果平均</div>
                     </div>
                 </div>
-                <h3>近期課程</h3>
+                <h3>年度課程</h3>
                 <div id="recentCourses"></div>
                 
                 <h3 style="margin-top: 40px;">學員受訓統計</h3>
@@ -2006,11 +2006,8 @@
                 
                 tempCoursesSnap.forEach(d => {
                     const course = d.data();
-                    if (course.completionDate) {
-                        const courseDate = new Date(course.completionDate);
-                        const courseYear = courseDate.getFullYear() - 1911; // 轉換成民國年
-                        yearsSet.add(courseYear);
-                    }
+                    const y = getCourseYearString(course);
+                    if (y) yearsSet.add(parseInt(y, 10));
                 });
                 
                 // 將年度排序（新到舊）
@@ -2057,12 +2054,7 @@
             coursesSnap.forEach(d => allCourses.push({ id: d.id, ...d.data() }));
             
             // 篩選該年度的課程（使用民國年）
-            const yearCourses = allCourses.filter(course => {
-                if (!course.completionDate) return false;
-                const courseDate = new Date(course.completionDate);
-                const courseYear = courseDate.getFullYear() - 1911; // 轉換成民國年
-                return courseYear.toString() === selectedYear;
-            });
+            const yearCourses = allCourses.filter(course => getCourseYearString(course) === selectedYear);
             
             // 統計數字計算
             document.getElementById('stat-courses').textContent = yearCourses.length;
@@ -2109,10 +2101,10 @@
             const evalAvg = evalCount > 0 ? Math.round((evalTotal / evalCount) * 5) : 0;  // 換算成100分制
             document.getElementById('stat-result-avg').textContent = evalAvg;
             
-            // Recent courses - 按課程編號排序（遞增）
-            const sorted = yearCourses.sort((a, b) => {
-                const codeA = a.code || '';
-                const codeB = b.code || '';
+            // 年度課程 - 依編號遞增排序
+            const sorted = yearCourses.slice().sort((a, b) => {
+                const codeA = (a.code || '').toString();
+                const codeB = (b.code || '').toString();
                 return codeA.localeCompare(codeB);
             });
             
@@ -2122,9 +2114,9 @@
                 getDocs(collection(db, 'performanceEvaluations'))
             ]);
             
-            let html = '<table><thead><tr><th>編號</th><th>課程</th><th>講師</th><th>完訓日期</th><th>學員數</th><th>滿意度總分</th><th>出席率</th><th>成果總分</th></tr></thead><tbody>';
+            let html = '<table><thead><tr><th>編號</th><th>課程</th><th>講師</th><th>完訓/最近上課日期</th><th>學員數</th><th>滿意度總分</th><th>出席率</th><th>成果總分</th></tr></thead><tbody>';
             
-            for (const c of sorted.slice(0, 5)) {
+            for (const c of sorted) {
                 // 計算滿意度總分 (換算成100分制)
                 let satTotal = 0;
                 let satCount = 0;
@@ -2140,10 +2132,11 @@
                 });
                 const satScore = satCount > 0 ? Math.round(satTotal / satCount) : '-';
                 
-                // 計算出席率
+                // 計算出席率（優先用按上課日期 sessions 的登錄，否則用舊 attendedStudents）
                 const assigned = c.assignedStudents ? c.assignedStudents.length : 0;
-                const attended = c.attendedStudents ? c.attendedStudents.length : 0;
-                const attendRate = assigned > 0 ? Math.round((attended / assigned) * 100) + '%' : '-';
+                const attended = c.attendedStudents ? c.attendedStudents.length : 0; // legacy total attended (union)
+                const attendRatePercent = calcCourseAttendanceRatePercent(c);
+                const attendRate = (attendRatePercent === null) ? '-' : (attendRatePercent + '%');
                 
                 // 計算成果總分
                 let evalTotalCourse = 0;
@@ -2157,11 +2150,14 @@
                 });
                 const evalScore = evalCountCourse > 0 ? Math.round((evalTotalCourse / evalCountCourse) * 5) : '-';  // 換算成100分制
                 
+                const latestDate = getCourseLatestDateValue(c);
+                const latestDateStr = latestDate ? latestDate.toISOString().split('T')[0] : '-';
+                
                 html += `<tr>
                     <td>${c.code}</td>
                     <td>${c.name}</td>
                     <td>${c.teacher || '-'}</td>
-                    <td>${c.completionDate || '-'}</td>
+                    <td>${latestDateStr}</td>
                     <td>${attended}</td>
                     <td>${satScore}</td>
                     <td>${attendRate}</td>
@@ -2189,6 +2185,8 @@
                     name: user.name,
                     assigned: 0,      // 被指派次數
                     attended: 0,      // 實際出席次數
+                    rateSum: 0,       // 單課程出席率加總（百分比）
+                    rateCourseCount: 0, // 參與計算的課程數（通常等於 assigned）
                     totalScore: 0,
                     scoreCount: 0,
                     hours: 0
@@ -2197,20 +2195,60 @@
             
             // 統計該年度的數據
             yearCourses.forEach(c => {
-                // 統計被指派（課程管理中的指派學員）
-                (c.assignedStudents || []).forEach(uid => {
+                const sessions = getCourseSessionsNormalized(c);
+                const sessionsCount = sessions.length;
+                const assignedStudents = c.assignedStudents || [];
+
+                // 被指派：以「課程」維度（維持原本表格定義）
+                assignedStudents.forEach(uid => {
                     if (studentData[uid]) {
                         studentData[uid].assigned++;
+
+                        // 出席率（學員維度）：先算「單課程」出席率，再做平均
+                        // 單課程出席率 = 該學員出席次數 / 該課上課次數
+                        // 若該課沒有 sessions（上課日期），fallback：在 attendedStudents 視為 100%，否則 0%
+                        let courseRate = 0;
+                        if (sessionsCount > 0) {
+                            let attendedSessions = 0;
+                            sessions.forEach(s => {
+                                if ((s.attendedStudents || []).includes(uid)) attendedSessions++;
+                            });
+                            courseRate = Math.round((attendedSessions / sessionsCount) * 100);
+                        } else {
+                            courseRate = (c.attendedStudents || []).includes(uid) ? 100 : 0;
+                        }
+                        studentData[uid].rateSum += courseRate;
+                        studentData[uid].rateCourseCount += 1;
                     }
                 });
-                
-                // 統計實際出席（受訓登錄中的出席學員）
+
+                // 實際出席：以「課程」維度（維持原本表格定義：只要任一上課日出席就算出席該課）
                 (c.attendedStudents || []).forEach(uid => {
                     if (studentData[uid]) {
                         studentData[uid].attended++;
-                        studentData[uid].hours += c.hours || 0;
                     }
                 });
+
+                // 年度受訓時數：改為「按上課日期」加總（若沒有 sessions 時數則 fallback 用課程總時數）
+                if (sessionsCount > 0) {
+                    sessions.forEach(s => {
+                        const sessionHours = (s.hours && s.hours > 0)
+                            ? s.hours
+                            : ((c.hours || 0) / sessionsCount);
+                        (s.attendedStudents || []).forEach(uid => {
+                            if (studentData[uid]) {
+                                studentData[uid].hours += sessionHours;
+                            }
+                        });
+                    });
+                } else {
+                    // legacy: whole-course attended adds course hours
+                    (c.attendedStudents || []).forEach(uid => {
+                        if (studentData[uid]) {
+                            studentData[uid].hours += c.hours || 0;
+                        }
+                    });
+                }
             });
             
             // 統計成績
@@ -2228,10 +2266,8 @@
             let courseCount = 0;
             
             yearCourses.forEach(c => {
-                const assigned = c.assignedStudents ? c.assignedStudents.length : 0;
-                const attended = c.attendedStudents ? c.attendedStudents.length : 0;
-                if (assigned > 0) {
-                    const rate = (attended / assigned) * 100;
+                const rate = calcCourseAttendanceRatePercent(c);
+                if (rate !== null) {
                     totalCourseAttendanceRate += rate;
                     courseCount++;
                 }
@@ -2250,9 +2286,9 @@
                 .filter(s => s.assigned > 0 || s.attended > 0)
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .forEach(s => {
-                    // 出席率 = 實際出席 / 被指派
-                    const attendanceRate = s.assigned > 0 
-                        ? Math.round((s.attended / s.assigned) * 100) 
+                    // 出席率 =（單課程出席率平均）= 單課程出席率加總 / 被指派課程數
+                    const attendanceRate = s.rateCourseCount > 0
+                        ? Math.round(s.rateSum / s.rateCourseCount)
                         : 0;
                     
                     // 未出席 = 被指派 - 實際出席
@@ -2689,10 +2725,8 @@
                 totalBudget += cost;
                 totalSubsidy += subsidy;  // 累加政府補助
                 
-                // 已完訓課程
-                if (course.completionDate) {
-                    completedHours += hours;
-                }
+                // 已執行時數：依受訓登錄依日期填入的場次加總（今天以前的上課日），無 sessions 則沿用完訓日
+                completedHours += getCourseExecutedHours(course);
                 
                 // 內訓/外訓
                 if (course.type === 'internal') {
@@ -3772,6 +3806,142 @@
             await loadCoursesAdmin();
         }
 
+        // ===== Attendance helpers (per-session, backward compatible) =====
+        function getCourseSessionsNormalized(course) {
+            const sessions = Array.isArray(course.sessions) ? course.sessions : [];
+            if (sessions.length > 0) {
+                return sessions
+                    .filter(s => s && s.date)
+                    .map(s => ({
+                        date: s.date,
+                        hours: typeof s.hours === 'number' ? s.hours : (parseFloat(s.hours) || 0),
+                        attendedStudents: Array.isArray(s.attendedStudents) ? s.attendedStudents : []
+                    }));
+            }
+            const dates = Array.isArray(course.dates) ? course.dates : [];
+            return dates
+                .filter(Boolean)
+                .map(date => ({ date, hours: 0, attendedStudents: [] }));
+        }
+
+        function unionAttendedStudentsFromSessions(sessions) {
+            const set = new Set();
+            sessions.forEach(s => (s.attendedStudents || []).forEach(uid => set.add(uid)));
+            return Array.from(set);
+        }
+
+        function calcCourseAttendanceRatePercent(course) {
+            const assignedCount = (course.assignedStudents || []).length;
+            if (assignedCount === 0) return null;
+
+            const sessions = getCourseSessionsNormalized(course);
+            if (sessions.length > 0) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const eligibleSessions = sessions.filter(s => {
+                    // 沒有有效日期的場次，不納入出席率分母（避免被算成 1969-12-31 或被當成已發生）
+                    if (!s.date) return false;
+                    const d = new Date(s.date);
+                    if (isNaN(d.getTime())) return false;
+                    d.setHours(0, 0, 0, 0);
+                    // 只計入「今天以前」的課（已經可以登錄的場次），未來尚未發生的不上算
+                    return d <= today;
+                });
+
+                if (eligibleSessions.length === 0) {
+                    // 全都是未來場次，暫時不統計出席率
+                    return null;
+                }
+
+                let totalCheckins = 0;
+                eligibleSessions.forEach(s => {
+                    totalCheckins += (s.attendedStudents || []).length;
+                });
+                return Math.round((totalCheckins / (assignedCount * eligibleSessions.length)) * 100);
+            }
+
+            // 沒有填上課日期（sessions 為空或只有 course.dates 但無實際登錄場次）→ 不納入出席率，避免只派學員就出現 0% 拉低平均
+            return null;
+        }
+
+        function calcUserAttendedHours(course, userId) {
+            const sessions = getCourseSessionsNormalized(course);
+            if (sessions.length > 0) {
+                const sessionCount = sessions.length;
+                return sessions.reduce((sum, s) => {
+                    if (!(s.attendedStudents || []).includes(userId)) return sum;
+                    const h = (s.hours && s.hours > 0)
+                        ? s.hours
+                        : ((course.hours || 0) / sessionCount);
+                    return sum + (h || 0);
+                }, 0);
+            }
+            // legacy: no sessions -> whole-course hours
+            return (course.hours || 0);
+        }
+
+        function getCourseYearString(course) {
+            // Prefer explicit year code field (民國年字串，如 "115")
+            if (course && course.year) return String(course.year);
+            if (course && course.completionDate) {
+                const d = new Date(course.completionDate);
+                if (!isNaN(d.getTime())) return String(d.getFullYear() - 1911);
+            }
+            // Fallback: use first session date (if any)
+            const sessions = getCourseSessionsNormalized(course);
+            if (sessions.length > 0 && sessions[0].date) {
+                const d = new Date(sessions[0].date);
+                if (!isNaN(d.getTime())) return String(d.getFullYear() - 1911);
+            }
+            return '';
+        }
+
+        function getCourseLatestDateValue(course) {
+            // 回傳 Date 物件或 null，用於排序「近期課程」
+            // 1. 優先用完訓日期
+            if (course && course.completionDate) {
+                const d = new Date(course.completionDate);
+                if (!isNaN(d.getTime())) return d;
+            }
+            // 2. 其次用 sessions 中最晚的一天
+            const sessions = getCourseSessionsNormalized(course);
+            let latest = null;
+            sessions.forEach(s => {
+                if (!s.date) return;
+                const d = new Date(s.date);
+                if (isNaN(d.getTime())) return;
+                if (!latest || d > latest) latest = d;
+            });
+            if (latest) return latest;
+            // 3. 都沒有就回傳 null（顯示 '-' 並自然排到最後）
+            return null;
+        }
+
+        /** 課程「已執行時數」：依受訓登錄依日期填入的場次加總（只計今天以前的上課日） */
+        function getCourseExecutedHours(course) {
+            const sessions = getCourseSessionsNormalized(course);
+            if (sessions.length > 0) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const sessionCount = sessions.length;
+                return sessions.reduce((sum, s) => {
+                    if (!s.date) return sum;
+                    const d = new Date(s.date);
+                    if (isNaN(d.getTime())) return sum;
+                    d.setHours(0, 0, 0, 0);
+                    if (d > today) return sum;
+                    const h = (s.hours != null && s.hours > 0)
+                        ? Number(s.hours)
+                        : ((course.hours || 0) / sessionCount);
+                    return sum + (h || 0);
+                }, 0);
+            }
+            // 無 sessions：沿用舊邏輯，有完訓日才計入整門課時數
+            if (course && course.completionDate) return course.hours || 0;
+            return 0;
+        }
+
         // Load Attendance Admin
         async function loadAttendanceAdmin() {
             const container = document.getElementById('attendanceContent');
@@ -3800,7 +3970,7 @@
             document.getElementById('att-course').addEventListener('change', loadCourseAttendance);
         }
 
-        // Load Course Attendance
+        // Load Course Attendance (per session/date)
         async function loadCourseAttendance() {
             const courseId = document.getElementById('att-course').value;
             const container = document.getElementById('attendance-details');
@@ -3812,58 +3982,117 @@
             
             const course = allCourses.find(c => c.id === courseId);
             const assigned = course.assignedStudents || [];
-            const attended = course.attendedStudents || [];
+            const sessions = getCourseSessionsNormalized(course).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
             
             if (assigned.length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light);">此課程尚未指派學員</div>';
                 return;
             }
             
-            let html = '<h4 style="margin: 20px 0;">出席登錄</h4>';
-            html += '<div class="checkbox-group">';
+            if (sessions.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light);">此課程尚未設定上課日期（請至課程管理設定上課日期 / sessions）</div>';
+                return;
+            }
             
-            assigned.forEach(userId => {
-                const user = allUsers.find(u => u.id === userId);
-                if (user) {
+            let html = `
+                <h4 style="margin: 20px 0;">出席登錄（依上課日期）</h4>
+                <p style="color:#666; font-size: 13px; margin-bottom: 10px;">
+                    說明：此處為「每次上課」出席登錄；系統會同步維護課程的總出席名單（attendedStudents）以相容舊報表。
+                </p>
+                <div class="form-group">
+                    <label class="form-label">選擇上課日期</label>
+                    <select id="att-session" class="form-select">
+                        ${sessions.map(s => `<option value="${s.date}">${s.date}${s.hours ? `（${s.hours}h）` : ''}</option>`).join('')}
+                    </select>
+                </div>
+                <div id="attendance-session-checklist"></div>
+            `;
+            
+            container.innerHTML = html;
+            
+            const renderChecklist = () => {
+                const selectedDate = document.getElementById('att-session').value;
+                const courseNow = allCourses.find(c => c.id === courseId);
+                const sessionsNow = getCourseSessionsNormalized(courseNow);
+                const session = sessionsNow.find(s => s.date === selectedDate);
+                const attended = session ? (session.attendedStudents || []) : [];
+                
+                let listHtml = '<div class="checkbox-group">';
+                assigned.forEach(userId => {
+                    const user = allUsers.find(u => u.id === userId);
+                    if (!user) return;
                     const checked = attended.includes(userId) ? 'checked' : '';
-                    html += `
+                    listHtml += `
                         <label class="checkbox-label">
-                            <input type="checkbox" value="${userId}" ${checked} data-course-id="${courseId}" data-user-id="${userId}" class="attendance-check">
+                            <input type="checkbox" value="${userId}" ${checked}
+                                   data-course-id="${courseId}"
+                                   data-session-date="${selectedDate}"
+                                   data-user-id="${userId}"
+                                   class="attendance-check">
                             <span>${user.name}</span>
                         </label>
                     `;
-                }
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
-            
-            // Attach event listeners
-            document.querySelectorAll('.attendance-check').forEach(cb => {
-                cb.addEventListener('change', async function() {
-                    const courseId = this.getAttribute('data-course-id');
-                    const userId = this.getAttribute('data-user-id');
-                    await updateAttendance(courseId, userId, this.checked);
                 });
-            });
+                listHtml += '</div>';
+                
+                document.getElementById('attendance-session-checklist').innerHTML = listHtml;
+                
+                document.querySelectorAll('.attendance-check').forEach(cb => {
+                    cb.addEventListener('change', async function() {
+                        const cId = this.getAttribute('data-course-id');
+                        const date = this.getAttribute('data-session-date');
+                        const uId = this.getAttribute('data-user-id');
+                        await updateAttendanceBySession(cId, date, uId, this.checked);
+                    });
+                });
+            };
+            
+            document.getElementById('att-session').addEventListener('change', renderChecklist);
+            renderChecklist();
         }
 
-        // Update Attendance
-        async function updateAttendance(courseId, userId, isAttended) {
+        // Update Attendance (per session/date) + keep legacy attendedStudents as union
+        async function updateAttendanceBySession(courseId, sessionDate, userId, isAttended) {
             const course = allCourses.find(c => c.id === courseId);
-            let attended = course.attendedStudents || [];
+            const sessions = getCourseSessionsNormalized(course);
+            let found = false;
             
-            if (isAttended) {
-                if (!attended.includes(userId)) attended.push(userId);
-            } else {
-                attended = attended.filter(id => id !== userId);
-            }
-            
-            await updateDoc(doc(db, 'courses', courseId), {
-                attendedStudents: attended
+            const nextSessions = sessions.map(s => {
+                if (s.date !== sessionDate) return s;
+                found = true;
+                const set = new Set(Array.isArray(s.attendedStudents) ? s.attendedStudents : []);
+                if (isAttended) set.add(userId);
+                else set.delete(userId);
+                return { ...s, attendedStudents: Array.from(set) };
             });
             
-            course.attendedStudents = attended;
+            if (!found) {
+                const set = new Set();
+                if (isAttended) set.add(userId);
+                nextSessions.push({ date: sessionDate, hours: 0, attendedStudents: Array.from(set) });
+            }
+            
+            const attendedUnion = unionAttendedStudentsFromSessions(nextSessions);
+            
+            await updateDoc(doc(db, 'courses', courseId), {
+                sessions: nextSessions,
+                attendedStudents: attendedUnion
+            });
+            
+            course.sessions = nextSessions;
+            course.attendedStudents = attendedUnion;
+
+            // If user is currently viewing dashboard/records, refresh to reflect latest attendance immediately
+            try {
+                const visibleAdminTab = document.querySelector('.admin-tab:not(.hidden)');
+                if (visibleAdminTab && visibleAdminTab.id === 'admin-dashboard') {
+                    await loadAdminDashboard();
+                } else if (visibleAdminTab && visibleAdminTab.id === 'admin-records') {
+                    await loadRecordsAdmin();
+                }
+            } catch (e) {
+                console.warn('refresh after attendance update failed:', e);
+            }
         }
 
         // Load Progress Admin
@@ -4262,7 +4491,7 @@
                         <td>${c.code}</td>
                         <td>${c.name}</td>
                         <td>${c.completionDate || '-'}</td>
-                        <td>${c.hours || 0}</td>
+                        <td>${calcUserAttendedHours(c, user.id).toFixed(1).replace(/\.0$/, '')}</td>
                         <td>${c.hasCertificate ? '✓' : ''}</td>
                         <td>${hasSat ? '✓' : ''}</td>
                         <td>${hasRef ? '✓' : ''}</td>
@@ -4514,11 +4743,9 @@
                 Math.round((totalScore / totalResponses / 15 / 5) * 100) : 0;
             document.getElementById('satisfaction-total-score').textContent = satisfactionScore;
             
-            // 計算出席率
-            const assignedCount = course.assignedStudents ? course.assignedStudents.length : 0;
-            const attendedCount = course.attendedStudents ? course.attendedStudents.length : 0;
-            const attendanceRate = assignedCount > 0 ? Math.round((attendedCount / assignedCount) * 100) : 0;
-            document.getElementById('attendance-rate').textContent = attendanceRate + '%';
+            // 計算出席率（優先用按上課日期 sessions 的登錄，否則用舊 attendedStudents）
+            const attendanceRatePercent = calcCourseAttendanceRatePercent(course);
+            document.getElementById('attendance-rate').textContent = (attendanceRatePercent === null ? '0%' : (attendanceRatePercent + '%'));
         }
 
         // Load Training Result Report
@@ -4671,7 +4898,10 @@
                                 return Math.round(avgScore);
                             })()}</td>
                             <th style="width: 25%; text-align: center;">出席率</th>
-                            <td style="text-align: center; font-weight: 600; font-size: 16px;">${course.assignedStudents && course.attendedStudents ? Math.round((course.attendedStudents.length / course.assignedStudents.length) * 100) : 0}%</td>
+                            <td style="text-align: center; font-weight: 600; font-size: 16px;">${(() => {
+                                const rate = calcCourseAttendanceRatePercent(course);
+                                return (rate === null ? 0 : rate);
+                            })()}%</td>
                         </tr>
                     </table>
                     
