@@ -1963,7 +1963,8 @@
                     if (c.attendedStudents && c.attendedStudents.includes(subId)) {
                         courses++;
                         hours += c.hours || 0;
-                        if (c.hasCertificate) certs++;
+                        // 舊資料（沒有 hasLicense 欄位）一律視為沒有證書/證照
+                        if (c.hasLicense != null && c.hasCertificate) certs++;
                     }
                 });
                 
@@ -2907,7 +2908,10 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <input type="checkbox" id="course-cert"> 有證書/證照
+                            <input type="checkbox" id="course-cert"> 有證書
+                        </label>
+                        <label class="form-label" style="display:block; margin-top:8px;">
+                            <input type="checkbox" id="course-license"> 有證照
                         </label>
                     </div>
                     <div class="form-group">
@@ -3357,7 +3361,10 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <input type="checkbox" id="course-cert" ${course.hasCertificate?'checked':''}> 有證書/證照
+                            <input type="checkbox" id="course-cert" ${(course.hasLicense != null && course.hasCertificate) ? 'checked' : ''}> 有證書
+                        </label>
+                        <label class="form-label" style="display:block; margin-top:8px;">
+                            <input type="checkbox" id="course-license" ${(course.hasLicense != null && course.hasLicense) ? 'checked' : ''}> 有證照
                         </label>
                     </div>
                     <div class="form-group">
@@ -3561,6 +3568,8 @@
             const teacher = document.getElementById('course-teacher').value;
             const completion = document.getElementById('course-completion').value;
             const hasCert = document.getElementById('course-cert').checked;
+            // 新增: 證照欄位（舊資料可能沒有 hasLicense，因此這裡直接用勾選值）
+            const hasLicense = (document.getElementById('course-license')?.checked) || false;
             const type = document.getElementById('course-type').value || 'internal';
             const cost = parseFloat(document.getElementById('course-cost').value) || 0;
             const costNote = document.getElementById('course-cost-note').value || '';
@@ -3632,6 +3641,7 @@
                 dates: dates,
                 completionDate: completion, 
                 hasCertificate: hasCert,
+                hasLicense: hasLicense,
                 type: type,
                 cost: cost,
                 costNote: costNote,
@@ -3682,6 +3692,8 @@
             const teacher = document.getElementById('course-teacher').value;
             const completion = document.getElementById('course-completion').value;
             const hasCert = document.getElementById('course-cert').checked;
+            // 新增: 證照欄位
+            const hasLicense = (document.getElementById('course-license')?.checked) || false;
             const type = document.getElementById('course-type').value || 'internal';
             const cost = parseFloat(document.getElementById('course-cost').value) || 0;
             const costNote = document.getElementById('course-cost-note').value || '';
@@ -3755,6 +3767,7 @@
                 dates: dates,
                 completionDate: completion, 
                 hasCertificate: hasCert,
+                hasLicense: hasLicense,
                 type: type,
                 cost: cost,
                 costNote: costNote,
@@ -4466,8 +4479,80 @@
                 getDocs(collection(db, 'reflectionReports')),
                 getDocs(collection(db, 'performanceEvaluations'))
             ]);
-            
-            let html = '<table><thead><tr><th>姓名</th><th>職級</th><th>課程編號</th><th>課程名稱</th><th>完訓日期</th><th>時數</th><th>證書</th><th>滿意度</th><th>心得</th><th>評估</th></tr></thead><tbody>';
+
+            // ===== 年度證書/證照彙總（含較去年差異）=====
+            // - 證書取得：用課程層級 `hasCertificate`
+            // - 證照取得：用課程層級 `hasLicense`
+            // - 舊資料可能沒有 hasLicense（表示當初只有合併勾選）
+            //   依你目前需求：舊資料一律視為「沒有證書/沒有證照」，所以沒有 hasLicense 欄位的資料統計為 0
+            const certByYear = {};   // { [民國年]: number }
+            const licenseByYear = {}; // { [民國年]: number }
+
+            const effectiveCert = (course) => (course && course.hasLicense != null) ? !!course.hasCertificate : false;
+            const effectiveLicense = (course) => (course && course.hasLicense != null) ? !!course.hasLicense : false;
+
+            coursesSnap.forEach(d => {
+                const c = d.data();
+                const yearRaw = c.year || getCourseYearString(c);
+                const year = yearRaw ? parseInt(yearRaw, 10) : NaN;
+                if (!year || isNaN(year)) return;
+
+                const attendedCount = (c.attendedStudents || []).length;
+                const hasCert = effectiveCert(c);
+                const hasLicense = effectiveLicense(c);
+
+                if (hasCert) {
+                    certByYear[year] = (certByYear[year] || 0) + attendedCount;
+                }
+                if (hasLicense) {
+                    licenseByYear[year] = (licenseByYear[year] || 0) + attendedCount;
+                }
+            });
+
+            const yearsSet = new Set([
+                ...Object.keys(certByYear).map(k => parseInt(k, 10)),
+                ...Object.keys(licenseByYear).map(k => parseInt(k, 10))
+            ]);
+            const years = Array.from(yearsSet).filter(y => !isNaN(y)).sort((a, b) => b - a);
+
+            const diffHtml = (diff) => {
+                if (diff > 0) return `<span style="color:#16a34a;">↑ +${diff}</span>`;
+                if (diff < 0) return `<span style="color:#dc2626;">↓ -${Math.abs(diff)}</span>`;
+                return `<span style="color:#6b7280;">0</span>`;
+            };
+
+            let statsHtml = '';
+            if (years.length > 0) {
+                // 用「儀表板色塊」樣式呈現，避免表格觀感像圖表
+                const cardGrid = 'grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;';
+                statsHtml = `
+                    <div class="section-header" style="margin-bottom: 12px;">年度證書/證照取得統計</div>
+                    <div style="display:grid; ${cardGrid} margin-bottom: 18px;">
+                        ${years.map(year => {
+                            const certCount = certByYear[year] || 0;
+                            const licenseCount = licenseByYear[year] || 0;
+                            const certDiff = certCount - (certByYear[year - 1] || 0);
+                            const licenseDiff = licenseCount - (licenseByYear[year - 1] || 0);
+                            return `
+                                <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <div class="stat-value">
+                                        ${certCount} ${diffHtml(certDiff)}
+                                    </div>
+                                    <div class="stat-label">${year}年 證書取得數</div>
+                                </div>
+                                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                    <div class="stat-value">
+                                        ${licenseCount} ${diffHtml(licenseDiff)}
+                                    </div>
+                                    <div class="stat-label">${year}年 證照取得數</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            let html = `${statsHtml}<table><thead><tr><th>姓名</th><th>職級</th><th>課程編號</th><th>課程名稱</th><th>完訓日期</th><th>時數</th><th>證書</th><th>證照</th><th>滿意度</th><th>心得</th><th>評估</th></tr></thead><tbody>`;
             
             allUsers.forEach(user => {
                 coursesSnap.forEach(d => {
@@ -4492,7 +4577,8 @@
                         <td>${c.name}</td>
                         <td>${c.completionDate || '-'}</td>
                         <td>${calcUserAttendedHours(c, user.id).toFixed(1).replace(/\.0$/, '')}</td>
-                        <td>${c.hasCertificate ? '✓' : ''}</td>
+                        <td>${effectiveCert(c) ? '✓' : ''}</td>
+                        <td>${effectiveLicense(c) ? '✓' : ''}</td>
                         <td>${hasSat ? '✓' : ''}</td>
                         <td>${hasRef ? '✓' : ''}</td>
                         <td>${avgEval}</td>
@@ -4506,7 +4592,7 @@
 
         // Export Records
         function exportRecords() {
-            let csv = '姓名,職級,課程編號,課程名稱,完訓日期,時數,證書,滿意度,心得,評估平均\n';
+            let csv = '姓名,職級,課程編號,課程名稱,完訓日期,時數,證書,證照,滿意度,心得,評估平均\n';
             
             const rows = document.querySelectorAll('#recordsContent tbody tr');
             rows.forEach(row => {
@@ -4970,7 +5056,8 @@
                     data.hours || 0,
                     (data.dates || []).join(';'),
                     data.completionDate || '',
-                    data.hasCertificate ? '是' : '否',
+                    // 舊資料如果沒有 hasLicense 欄位，一律視為「沒有證書/證照」
+                    (data.hasLicense != null ? data.hasCertificate : false) ? '是' : '否',
                     data.year || '',
                     (data.assignedStudents || []).join(';'),
                     (data.attendedStudents || []).join(';')
