@@ -1187,12 +1187,14 @@
             snap.forEach(docSnap => {
                 const user = { id: docSnap.id, ...docSnap.data() };
                 allUsers.push(user);
-                
-                // 過濾純講師：isStudent=false 且 isTeacher=true 的不顯示
-                const isPureTeacher = (user.isStudent === false && user.isTeacher === true);
-                if (isPureTeacher) {
-                    return; // 跳過純講師
-                }
+
+                // 只隱藏「純講師」：講師=true、學員=false、且不是管理職
+                // 兼容舊資料可能出現字串 'true' / 'false'
+                const isTeacher = (user.isTeacher === true || user.isTeacher === 'true');
+                const isStudent = !(user.isStudent === false || user.isStudent === 'false');
+                const isManager = (user.isManager === true || user.isManager === 'true');
+                const isPureTeacher = isTeacher && !isStudent && !isManager;
+                if (isPureTeacher) return;
                 
                 const opt = document.createElement('option');
                 opt.value = docSnap.id;
@@ -1520,7 +1522,7 @@
             
             coursesSnap.forEach(docSnap => {
                 const course = docSnap.data();
-                if (course.attendedStudents && course.attendedStudents.includes(currentUser) && !submitted.has(course.code)) {
+                if (course.attendedStudents && course.attendedStudents.includes(currentUser) && !submitted.has(course.code) && isCourseCompletionReached(course)) {
                     pending.push({ id: docSnap.id, ...course });
                 }
             });
@@ -1645,7 +1647,7 @@
             
             coursesSnap.forEach(docSnap => {
                 const course = docSnap.data();
-                if (course.attendedStudents && course.attendedStudents.includes(currentUser) && !submitted.has(course.code)) {
+                if (course.attendedStudents && course.attendedStudents.includes(currentUser) && !submitted.has(course.code) && isCourseCompletionReached(course)) {
                     pending.push({ id: docSnap.id, ...course });
                 }
             });
@@ -2196,7 +2198,7 @@
             
             // 統計該年度的數據
             yearCourses.forEach(c => {
-                const sessions = getCourseSessionsNormalized(c);
+                const sessions = getEligibleAttendanceSessions(c);
                 const sessionsCount = sessions.length;
                 const assignedStudents = c.assignedStudents || [];
 
@@ -2206,20 +2208,17 @@
                         studentData[uid].assigned++;
 
                         // 出席率（學員維度）：先算「單課程」出席率，再做平均
-                        // 單課程出席率 = 該學員出席次數 / 該課上課次數
-                        // 若該課沒有 sessions（上課日期），fallback：在 attendedStudents 視為 100%，否則 0%
-                        let courseRate = 0;
+                        // 單課程出席率 = 該學員出席次數 / 該課「已到日期」上課次數
+                        // 若該課尚未到任何上課日期，先不納入平均，避免預排課程拉低出席率
                         if (sessionsCount > 0) {
                             let attendedSessions = 0;
                             sessions.forEach(s => {
                                 if ((s.attendedStudents || []).includes(uid)) attendedSessions++;
                             });
-                            courseRate = Math.round((attendedSessions / sessionsCount) * 100);
-                        } else {
-                            courseRate = (c.attendedStudents || []).includes(uid) ? 100 : 0;
+                            const courseRate = Math.round((attendedSessions / sessionsCount) * 100);
+                            studentData[uid].rateSum += courseRate;
+                            studentData[uid].rateCourseCount += 1;
                         }
-                        studentData[uid].rateSum += courseRate;
-                        studentData[uid].rateCourseCount += 1;
                     }
                 });
 
@@ -2333,24 +2332,45 @@
             allUsers = [];
             snap.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
             
-            // 排序：學員在前，講師在後，再按職級遞減
+            // 人員分組：
+            // 1) 其他人員（非純講師）：依職等 L5 -> L1 遞減
+            // 2) 純講師：獨立分組顯示，並以分隔線隔開
             const levelOrder = { 'L5': 5, 'L4': 4, 'L3': 3, 'L2': 2, 'L1': 1, '講師': 0 };
-            allUsers.sort((a, b) => {
-                const aIsStudent = a.isStudent !== false;
-                const bIsStudent = b.isStudent !== false;
-                
-                // 第1層：學員優先
-                if (aIsStudent && !bIsStudent) return -1;
-                if (!aIsStudent && bIsStudent) return 1;
-                
-                // 第2層：按職級遞減排序 (L5 > L4 > L3 > L2 > L1 > 講師)
+            const isTrue = (v) => (v === true || v === 'true');
+            const isFalse = (v) => (v === false || v === 'false');
+            const isPureTeacher = (u) => isTrue(u.isTeacher) && isFalse(u.isStudent) && !isTrue(u.isManager);
+            const sortByLevelThenName = (a, b) => {
                 const aLevel = levelOrder[a.level] || 0;
                 const bLevel = levelOrder[b.level] || 0;
-                return bLevel - aLevel;  // 遞減
-            });
+                if (bLevel !== aLevel) return bLevel - aLevel;
+                return (a.name || '').localeCompare(b.name || '');
+            };
+            const regularUsers = allUsers.filter(u => !isPureTeacher(u)).sort(sortByLevelThenName);
+            const pureTeachers = allUsers.filter(u => isPureTeacher(u)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
             
             let html = '<table><thead><tr><th>姓名</th><th>職級</th><th>管理職</th><th>部屬數</th><th>操作</th></tr></thead><tbody>';
-            allUsers.forEach(u => {
+            regularUsers.forEach(u => {
+                html += `<tr>
+                    <td>${u.name}</td>
+                    <td>${u.level}</td>
+                    <td>${u.isManager ? '✓' : ''}</td>
+                    <td>${u.subordinates ? u.subordinates.length : 0}</td>
+                    <td>
+                        <button class="btn btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" data-edit-user="${u.id}">編輯</button>
+                        <button class="btn" style="width:auto; padding:6px 12px; font-size:12px; background:var(--danger); color:white;" data-delete-user="${u.id}">刪除</button>
+                    </td>
+                </tr>`;
+            });
+
+            if (pureTeachers.length > 0 && regularUsers.length > 0) {
+                html += `<tr>
+                    <td colspan="5" style="padding:0;">
+                        <div style="border-top:2px dashed #cbd5e1; margin:6px 0;"></div>
+                    </td>
+                </tr>`;
+            }
+
+            pureTeachers.forEach(u => {
                 html += `<tr>
                     <td>${u.name}</td>
                     <td>${u.level}</td>
@@ -2894,7 +2914,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">課程總時數</label>
-                        <input type="number" id="course-total-hours" class="form-input" value="${course.hours || 0}" min="0" step="0.5">
+                        <input type="number" id="course-total-hours" class="form-input" value="0" min="0" step="0.5">
                         <small style="color:#666;font-size:12px;">可手動輸入總時數，或由下方各次時數自動計算</small>
                     </div>
                     <div class="form-group">
@@ -3843,29 +3863,29 @@
             return Array.from(set);
         }
 
+        function getEligibleAttendanceSessions(course) {
+            const sessions = getCourseSessionsNormalized(course);
+            if (sessions.length === 0) return [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return sessions.filter(s => {
+                // 沒有有效日期的場次，不納入出席率分母
+                if (!s.date) return false;
+                const d = new Date(s.date);
+                if (isNaN(d.getTime())) return false;
+                d.setHours(0, 0, 0, 0);
+                // 只計入今天以前，未來課程不計入
+                return d <= today;
+            });
+        }
+
         function calcCourseAttendanceRatePercent(course) {
             const assignedCount = (course.assignedStudents || []).length;
             if (assignedCount === 0) return null;
 
-            const sessions = getCourseSessionsNormalized(course);
+            const sessions = getEligibleAttendanceSessions(course);
             if (sessions.length > 0) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                const eligibleSessions = sessions.filter(s => {
-                    // 沒有有效日期的場次，不納入出席率分母（避免被算成 1969-12-31 或被當成已發生）
-                    if (!s.date) return false;
-                    const d = new Date(s.date);
-                    if (isNaN(d.getTime())) return false;
-                    d.setHours(0, 0, 0, 0);
-                    // 只計入「今天以前」的課（已經可以登錄的場次），未來尚未發生的不上算
-                    return d <= today;
-                });
-
-                if (eligibleSessions.length === 0) {
-                    // 全都是未來場次，暫時不統計出席率
-                    return null;
-                }
+                const eligibleSessions = sessions;
 
                 let totalCheckins = 0;
                 eligibleSessions.forEach(s => {
@@ -3931,6 +3951,24 @@
             return null;
         }
 
+        function sortCoursesByCodeAsc(courses) {
+            return (courses || []).slice().sort((a, b) => {
+                const codeA = (a.code || '').toString();
+                const codeB = (b.code || '').toString();
+                return codeA.localeCompare(codeB);
+            });
+        }
+
+        function isCourseCompletionReached(course) {
+            if (!course || !course.completionDate) return false;
+            const d = new Date(course.completionDate);
+            if (isNaN(d.getTime())) return false;
+            d.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return d <= today;
+        }
+
         /** 課程「已執行時數」：依受訓登錄依日期填入的場次加總（只計今天以前的上課日） */
         function getCourseExecutedHours(course) {
             const sessions = getCourseSessionsNormalized(course);
@@ -3972,7 +4010,8 @@
             
             let html = '<div class="form-group"><label class="form-label">選擇課程</label><select id="att-course" class="form-select">';
             html += '<option value="">-- 請選擇課程 --</option>';
-            allCourses.forEach(c => {
+            const sortedCourses = sortCoursesByCodeAsc(allCourses);
+            sortedCourses.forEach(c => {
                 html += `<option value="${c.id}">${c.code} - ${c.name}</option>`;
             });
             html += '</select></div>';
@@ -4129,6 +4168,7 @@
             const satSubmitted = new Set(satSnap.docs.map(d => `${d.data().userId}-${d.data().courseCode}`));
             coursesSnap.forEach(d => {
                 const c = d.data();
+                if (!isCourseCompletionReached(c)) return;
                 (c.attendedStudents || []).forEach(uid => {
                     if (!satSubmitted.has(`${uid}-${c.code}`)) pendingSat++;
                 });
@@ -4144,6 +4184,7 @@
             });
             coursesSnap.forEach(d => {
                 const c = d.data();
+                if (!isCourseCompletionReached(c)) return;
                 (c.attendedStudents || []).forEach(uid => {
                     if (!refSubmitted.has(`${uid}-${c.code}`)) pendingRef++;
                 });
@@ -4191,6 +4232,7 @@
             
             let satHtml = '<table><thead><tr><th>課程</th><th>應填</th><th>已填</th><th>完成率</th><th>未填學員</th></tr></thead><tbody>';
             coursesList.forEach(c => {
+                if (!isCourseCompletionReached(c)) return;
                 const total = c.attendedStudents ? c.attendedStudents.length : 0;
                 const completed = satSubmittedByName[c.code] ? satSubmittedByName[c.code].length : 0;
                 const rate = total > 0 ? Math.round((completed/total)*100) : 0;
@@ -4230,6 +4272,7 @@
             
             // 使用已排序的課程列表
             coursesList.forEach(c => {
+                if (!isCourseCompletionReached(c)) return;
                 const total = c.attendedStudents ? c.attendedStudents.length : 0;
                 const completed = refSubmittedByName[c.code] ? refSubmittedByName[c.code].length : 0;
                 const rate = total > 0 ? Math.round((completed/total)*100) : 0;
@@ -4258,20 +4301,17 @@
             refHtml += '</tbody></table>';
             document.getElementById('progressReflection').innerHTML = refHtml;
             
-            // Evaluation Progress
-            const evalSubmitted = {};
+            // Evaluation Progress（每課程一筆，顯示「未評分主管」）
+            const evalSubmittedSet = new Set();
             evalSnap.forEach(d => {
                 const data = d.data();
-                const key = `${data.courseCode}-${data.managerId}`;
-                if (!evalSubmitted[key]) evalSubmitted[key] = [];
-                evalSubmitted[key].push(data.studentName);
+                evalSubmittedSet.add(`${data.courseCode}-${data.managerId}-${data.studentId}`);
             });
-            let evalHtml = '<table><thead><tr><th>課程</th><th>主管</th><th>應評估</th><th>已評估</th><th>完成率</th><th>未評估學員</th></tr></thead><tbody>';
+            let evalHtml = '<table><thead><tr><th>課程</th><th>應評估</th><th>已評估</th><th>完成率</th><th>未評分主管</th></tr></thead><tbody>';
             
             const managers = allUsers.filter(u => u.isManager && u.subordinates && u.subordinates.length > 0);
             
-            coursesSnap.forEach(d => {
-                const c = d.data();
+            coursesList.forEach(c => {
                 if (!c.completionDate) return;
                 
                 const compDate = new Date(c.completionDate);
@@ -4279,35 +4319,50 @@
                 evalDate.setDate(evalDate.getDate() + 30);
                 
                 if (today < evalDate) return;
-                
+
+                const managerPendingBlocks = [];
+                let total = 0;
+                let completed = 0;
+
                 managers.forEach(mgr => {
-                    const subordinates = c.attendedStudents ? c.attendedStudents.filter(id => mgr.subordinates.includes(id)) : [];
+                    const subordinates = c.attendedStudents ? c.attendedStudents.filter(id => (mgr.subordinates || []).includes(id)) : [];
                     if (subordinates.length === 0) return;
-                    
-                    const key = `${c.code}-${mgr.id}`;
-                    const completed = evalSubmitted[key] ? evalSubmitted[key].length : 0;
-                    const total = subordinates.length;
-                    const rate = total > 0 ? Math.round((completed/total)*100) : 0;
-                    const pending = subordinates
-                        .filter(id => {
-                            const user = allUsers.find(u => u.id === id);
-                            return evalSubmitted[key] ? !evalSubmitted[key].includes(user ? user.name : '') : true;
-                        })
-                        .map(id => {
-                            const user = allUsers.find(u => u.id === id);
-                            return user ? user.name : '';
-                        })
-                        .join(', ') || '全部完成';
-                    
-                    evalHtml += `<tr>
-                        <td>${c.code} - ${c.name}</td>
-                        <td>${mgr.name}</td>
-                        <td>${total}</td>
-                        <td>${completed}</td>
-                        <td>${rate}%</td>
-                        <td style="color:${pending==='全部完成'?'var(--success)':'var(--danger)'};">${pending}</td>
-                    </tr>`;
+
+                    total += subordinates.length;
+                    const pendingNames = [];
+                    subordinates.forEach(studentId => {
+                        const key = `${c.code}-${mgr.id}-${studentId}`;
+                        if (evalSubmittedSet.has(key)) {
+                            completed++;
+                        } else {
+                            const student = allUsers.find(u => u.id === studentId);
+                            pendingNames.push(student ? student.name : studentId);
+                        }
+                    });
+
+                    if (pendingNames.length > 0) {
+                        managerPendingBlocks.push(
+                            `<details style="margin:4px 0;">
+                                <summary style="cursor:pointer; color:var(--danger);">${mgr.name}（${pendingNames.length}）</summary>
+                                <div style="margin-top:4px; color:#666;">${pendingNames.join('、')}</div>
+                            </details>`
+                        );
+                    }
                 });
+
+                if (total === 0) return;
+                const rate = Math.round((completed / total) * 100);
+                const pendingManagersHtml = managerPendingBlocks.length > 0
+                    ? managerPendingBlocks.join('')
+                    : '<span style="color:var(--success);">全部完成</span>';
+                
+                evalHtml += `<tr>
+                    <td>${c.code} - ${c.name}</td>
+                    <td>${total}</td>
+                    <td>${completed}</td>
+                    <td>${rate}%</td>
+                    <td>${pendingManagersHtml}</td>
+                </tr>`;
             });
             
             evalHtml += '</tbody></table>';
@@ -4845,7 +4900,8 @@
             }
             
             select.innerHTML = '<option value="">-- 請選擇課程 --</option>';
-            allCourses.forEach(c => {
+            const sortedCourses = sortCoursesByCodeAsc(allCourses);
+            sortedCourses.forEach(c => {
                 select.innerHTML += `<option value="${c.code}">${c.code} - ${c.name}</option>`;
             });
             
