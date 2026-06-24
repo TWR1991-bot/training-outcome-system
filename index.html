@@ -918,7 +918,7 @@
                 
                 <h3 style="margin-top: 40px;">學員受訓統計</h3>
                 <p style="color: #666; font-size: 14px; margin-top: 8px;">
-                    出席率 = 實際出席 ÷ 被指派課程數 × 100%
+                    出席率 = 實際出席場次 ÷ 應出席場次 × 100%（依每次上課日期計算，非整堂課一次計算）
                 </p>
                 <div id="studentStats"></div>
             </div>
@@ -1096,7 +1096,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyBWAhhxjeYGvtW22IFXPd5et-evdPfmFr4",
@@ -1114,6 +1114,9 @@
         let currentRole = null;
         let allUsers = [];
         let allCourses = [];
+
+        const isTrue = (v) => (v === true || v === 'true');
+        const isAssignableStudentUser = (u) => isTrue(u.isStudent);
 
         // Initialize
         window.addEventListener('load', async () => {
@@ -2180,16 +2183,16 @@
             }
             
             // ===== 學員受訓統計 =====
-            // 計算每位學員的統計
+            // 計算每位學員的統計（場次維度：依每次上課日期計算出席）
             const studentData = {};
             
             allUsers.forEach(user => {
                 studentData[user.id] = {
                     name: user.name,
-                    assigned: 0,      // 被指派次數
-                    attended: 0,      // 實際出席次數
-                    rateSum: 0,       // 單課程出席率加總（百分比）
-                    rateCourseCount: 0, // 參與計算的課程數（通常等於 assigned）
+                    assignedCourses: 0,   // 被指派課程數
+                    eligibleSessions: 0,  // 應出席場次（已到日期的上課日）
+                    attendedSessions: 0,  // 實際出席場次
+                    courseCount: 0,       // 年度受訓班數（至少出席過一場的課程數）
                     totalScore: 0,
                     scoreCount: 0,
                     hours: 0
@@ -2202,49 +2205,47 @@
                 const sessionsCount = sessions.length;
                 const assignedStudents = c.assignedStudents || [];
 
-                // 被指派：以「課程」維度（維持原本表格定義）
                 assignedStudents.forEach(uid => {
-                    if (studentData[uid]) {
-                        studentData[uid].assigned++;
+                    if (!studentData[uid]) return;
+                    studentData[uid].assignedCourses++;
 
-                        // 出席率（學員維度）：先算「單課程」出席率，再做平均
-                        // 單課程出席率 = 該學員出席次數 / 該課「已到日期」上課次數
-                        // 若該課尚未到任何上課日期，先不納入平均，避免預排課程拉低出席率
-                        if (sessionsCount > 0) {
-                            let attendedSessions = 0;
-                            sessions.forEach(s => {
-                                if ((s.attendedStudents || []).includes(uid)) attendedSessions++;
-                            });
-                            const courseRate = Math.round((attendedSessions / sessionsCount) * 100);
-                            studentData[uid].rateSum += courseRate;
-                            studentData[uid].rateCourseCount += 1;
+                    if (sessionsCount > 0) {
+                        let attendedInCourse = 0;
+                        sessions.forEach(s => {
+                            studentData[uid].eligibleSessions++;
+                            if ((s.attendedStudents || []).includes(uid)) {
+                                studentData[uid].attendedSessions++;
+                                attendedInCourse++;
+                            }
+                        });
+                        if (attendedInCourse > 0) {
+                            studentData[uid].courseCount++;
+                        }
+                    } else if (isCourseCompletionReached(c)) {
+                        // 舊資料：無場次登錄時，以完訓日期後的整課出席名單計算（視為 1 場）
+                        studentData[uid].eligibleSessions++;
+                        if ((c.attendedStudents || []).includes(uid)) {
+                            studentData[uid].attendedSessions++;
+                            studentData[uid].courseCount++;
                         }
                     }
                 });
 
-                // 實際出席：以「課程」維度（維持原本表格定義：只要任一上課日出席就算出席該課）
-                (c.attendedStudents || []).forEach(uid => {
-                    if (studentData[uid]) {
-                        studentData[uid].attended++;
-                    }
-                });
-
-                // 年度受訓時數：改為「按上課日期」加總（若沒有 sessions 時數則 fallback 用課程總時數）
+                // 年度受訓時數：依上課場次加總（僅計算被指派學員）
                 if (sessionsCount > 0) {
                     sessions.forEach(s => {
                         const sessionHours = (s.hours && s.hours > 0)
                             ? s.hours
                             : ((c.hours || 0) / sessionsCount);
                         (s.attendedStudents || []).forEach(uid => {
-                            if (studentData[uid]) {
+                            if (studentData[uid] && assignedStudents.includes(uid)) {
                                 studentData[uid].hours += sessionHours;
                             }
                         });
                     });
-                } else {
-                    // legacy: whole-course attended adds course hours
-                    (c.attendedStudents || []).forEach(uid => {
-                        if (studentData[uid]) {
+                } else if (isCourseCompletionReached(c)) {
+                    assignedStudents.forEach(uid => {
+                        if (studentData[uid] && (c.attendedStudents || []).includes(uid)) {
                             studentData[uid].hours += c.hours || 0;
                         }
                     });
@@ -2281,18 +2282,22 @@
             // 生成學員統計表格
             let studentStatsHtml = '<table><thead><tr><th>學員姓名</th><th>出席率</th><th>實際出席</th><th>未出席</th><th>平均分數</th><th>年度受訓班數</th><th>年度受訓時數</th></tr></thead><tbody>';
             
-            // 生成表格（只要有被指派或有出席就顯示）
+            const hasStudentStats = (s) =>
+                s.assignedCourses > 0 || s.eligibleSessions > 0 || s.attendedSessions > 0 ||
+                s.courseCount > 0 || s.hours > 0 || s.scoreCount > 0;
+
+            // 生成表格
             Object.values(studentData)
-                .filter(s => s.assigned > 0 || s.attended > 0)
+                .filter(hasStudentStats)
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .forEach(s => {
-                    // 出席率 =（單課程出席率平均）= 單課程出席率加總 / 被指派課程數
-                    const attendanceRate = s.rateCourseCount > 0
-                        ? Math.round(s.rateSum / s.rateCourseCount)
+                    // 出席率 = 實際出席場次 ÷ 應出席場次 × 100%
+                    const attendanceRate = s.eligibleSessions > 0
+                        ? Math.round((s.attendedSessions / s.eligibleSessions) * 100)
                         : 0;
                     
-                    // 未出席 = 被指派 - 實際出席
-                    const absent = s.assigned - s.attended;
+                    // 未出席 = 應出席場次 - 實際出席場次
+                    const absent = s.eligibleSessions - s.attendedSessions;
                     
                     const avgScore = s.scoreCount > 0 
                         ? Math.round((s.totalScore / s.scoreCount) * 5)  // 換算成100分制
@@ -2301,10 +2306,10 @@
                     studentStatsHtml += `<tr>
                         <td>${s.name}</td>
                         <td>${attendanceRate}%</td>
-                        <td>${s.attended}</td>
+                        <td>${s.attendedSessions}</td>
                         <td>${absent}</td>
                         <td>${avgScore}</td>
-                        <td>${s.attended}</td>
+                        <td>${s.courseCount}</td>
                         <td>${s.hours}h</td>
                     </tr>`;
                 });
@@ -2314,7 +2319,7 @@
             // 防錯處理
             const studentStatsElement = document.getElementById('studentStats');
             if (studentStatsElement) {
-                const hasStudents = Object.values(studentData).some(s => s.assigned > 0 || s.attended > 0);
+                const hasStudents = Object.values(studentData).some(hasStudentStats);
                 if (!hasStudents) {
                     studentStatsElement.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">該年度沒有學員受訓資料</p>';
                 } else {
@@ -2886,6 +2891,7 @@
             
             let studentsHtml = '';
             allUsers.forEach(u => {
+                if (!isAssignableStudentUser(u)) return;
                 studentsHtml += `
                     <label class="checkbox-label">
                         <input type="checkbox" value="${u.id}">
@@ -3338,6 +3344,7 @@
             
             let studentsHtml = '';
             allUsers.forEach(u => {
+                if (!isAssignableStudentUser(u)) return;
                 const checked = course.assignedStudents && course.assignedStudents.includes(u.id) ? 'checked' : '';
                 studentsHtml += `
                     <label class="checkbox-label">
@@ -4733,8 +4740,8 @@
             let totalResponses = 0;
             const comments = [];
             
-            surveysSnap.forEach(doc => {
-                const data = doc.data();
+            surveysSnap.forEach(surveyDoc => {
+                const data = surveyDoc.data();
                 totalResponses++;
                 
                 data.scores.forEach((score, idx) => {
@@ -4756,9 +4763,25 @@
                 }
             });
             
+            // 載入已儲存的報告內容
+            let savedReport = { reportYear: '', reportMonth: '', reportDay: '', comments: '' };
+            const savedDoc = await getDoc(doc(db, 'satisfactionReports', courseCode));
+            if (savedDoc.exists()) {
+                const data = savedDoc.data();
+                savedReport = {
+                    reportYear: data.reportYear || '',
+                    reportMonth: data.reportMonth || '',
+                    reportDay: data.reportDay || '',
+                    comments: data.comments || ''
+                };
+            }
+            
             // 生成報告HTML
             let html = `
-                <button class="btn-print" onclick="window.print()">🖨️ 列印報告</button>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button class="btn-print" onclick="window.print()">🖨️ 列印報告</button>
+                    <button class="btn btn-success btn-print" onclick="saveSatisfactionReport('${courseCode}')">💾 儲存報告</button>
+                </div>
                 
                 <div class="report-container">
                     <div class="report-header">
@@ -4768,11 +4791,11 @@
                     
                     <div class="report-date">
                         <span>年</span>
-                        <input type="text" class="date-input" placeholder="115" id="report-year">
+                        <input type="text" class="date-input" placeholder="" id="report-year" value="${savedReport.reportYear}">
                         <span>月</span>
-                        <input type="text" class="date-input" placeholder="02" id="report-month">
+                        <input type="text" class="date-input" placeholder="" id="report-month" value="${savedReport.reportMonth}">
                         <span>日</span>
-                        <input type="text" class="date-input" placeholder="05" id="report-day">
+                        <input type="text" class="date-input" placeholder="" id="report-day" value="${savedReport.reportDay}">
                     </div>
                     
                     <table class="report-table">
@@ -4839,7 +4862,7 @@
                     
                     <div class="comment-section">
                         <div class="comment-title">整體評估與建議</div>
-                        <textarea class="comment-input" id="report-comments" placeholder="請輸入整體評估與建議...">學員對講師之專業能力、課程安排皆表達高度認同，學員予以高滿意分數評價，許諾與期盼公司能持續安排此類教育訓練，俾使同仁皆可精進工作技能，提高個人競爭力及生產與營運績效，以強化企業化體質。</textarea>
+                        <textarea class="comment-input" id="report-comments" placeholder="請輸入整體評估與建議...">${savedReport.comments}</textarea>
                     </div>
                     
                     <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 8px; page-break-inside: avoid;">
@@ -4888,6 +4911,29 @@
             const attendanceRatePercent = calcCourseAttendanceRatePercent(course);
             document.getElementById('attendance-rate').textContent = (attendanceRatePercent === null ? '0%' : (attendanceRatePercent + '%'));
         }
+
+        // 儲存滿意度統計報告（日期與整體評語）
+        window.saveSatisfactionReport = async function(courseCode) {
+            const reportYear = document.getElementById('report-year')?.value?.trim() || '';
+            const reportMonth = document.getElementById('report-month')?.value?.trim() || '';
+            const reportDay = document.getElementById('report-day')?.value?.trim() || '';
+            const comments = document.getElementById('report-comments')?.value?.trim() || '';
+            
+            try {
+                await setDoc(doc(db, 'satisfactionReports', courseCode), {
+                    courseCode,
+                    reportYear,
+                    reportMonth,
+                    reportDay,
+                    comments,
+                    updatedAt: new Date().toISOString()
+                });
+                alert('報告已儲存');
+            } catch (err) {
+                console.error('儲存報告失敗:', err);
+                alert('儲存失敗，請稍後再試');
+            }
+        };
 
         // Load Training Result Report
         async function loadTrainingResult() {
@@ -4962,8 +5008,19 @@
                 };
             });
             
+            // 載入已儲存的報告內容
+            let savedReport = { comments: '' };
+            const savedDoc = await getDoc(doc(db, 'trainingResultReports', courseCode));
+            if (savedDoc.exists()) {
+                const data = savedDoc.data();
+                savedReport.comments = data.comments || '';
+            }
+            
             let html = `
-                <button class="btn-print" onclick="window.print()">🖨️ 列印報告</button>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button class="btn-print" onclick="window.print()">🖨️ 列印報告</button>
+                    <button class="btn btn-success btn-print" onclick="saveTrainingResultReport('${courseCode}')">💾 儲存報告</button>
+                </div>
                 
                 <div class="report-container">
                     <div class="report-header">
@@ -5025,7 +5082,7 @@
                     
                     <div class="comment-section">
                         <div class="comment-title">整體評估與建議</div>
-                        <textarea class="comment-input" id="result-comments" placeholder="請輸入整體評估與建議..."></textarea>
+                        <textarea class="comment-input" id="result-comments" placeholder="請輸入整體評估與建議...">${savedReport.comments}</textarea>
                     </div>
                     
                     <table class="report-table" style="margin-top: 15px;">
@@ -5050,7 +5107,7 @@
                     <table class="signature-section">
                         <tr class="signature-row">
                             <td class="signature-cell">
-                                <div class="signature-label">總經理</div>
+                                <div class="signature-label">董事長</div>
                             </td>
                             <td class="signature-cell" colspan="2">
                                 <div class="signature-label">人資主管</div>
@@ -5070,6 +5127,23 @@
             
             container.innerHTML = html;
         }
+
+        // 儲存訓練成果報告（整體評語）
+        window.saveTrainingResultReport = async function(courseCode) {
+            const comments = document.getElementById('result-comments')?.value?.trim() || '';
+            
+            try {
+                await setDoc(doc(db, 'trainingResultReports', courseCode), {
+                    courseCode,
+                    comments,
+                    updatedAt: new Date().toISOString()
+                });
+                alert('報告已儲存');
+            } catch (err) {
+                console.error('儲存報告失敗:', err);
+                alert('儲存失敗，請稍後再試');
+            }
+        };
     
         // 將備份函數暴露到全域，讓 onclick 可以調用
         window.backupUsers = async function() {
